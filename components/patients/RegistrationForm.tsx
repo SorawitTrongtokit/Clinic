@@ -1,0 +1,336 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Save, MapPin } from 'lucide-react';
+
+interface RegistrationFormProps {
+    initialIdCard?: string;
+    onSuccess: (patient: any) => void;
+    initialData?: any; // New prop for editing
+    onCancel?: () => void;
+}
+
+export default function RegistrationForm({ initialIdCard, onSuccess, initialData, onCancel }: RegistrationFormProps) {
+    const [loading, setLoading] = useState(false);
+
+    // Address parts state
+    const [address, setAddress] = useState({
+        houseNo: '',
+        moo: '',
+        tambon: 'มะตูม',
+        amphoe: 'พรหมพิราม',
+        province: 'พิษณุโลก',
+        zip: ''
+    });
+
+    const [formData, setFormData] = useState({
+        id_card: initialIdCard || '',
+        prefix: 'นาง',
+        first_name: '',
+        last_name: '',
+        birthdate: '',
+        phone: '',
+        treatment_right: 'บัตรทอง',
+        drug_allergy: '',
+        underlying_disease: '',
+        gender: 'female'
+    });
+
+    useEffect(() => {
+        if (initialData) {
+            // Load basic data
+            setFormData({
+                id_card: initialData.id_card,
+                prefix: initialData.prefix,
+                first_name: initialData.first_name,
+                last_name: initialData.last_name,
+                birthdate: initialData.birthdate,
+                phone: initialData.phone,
+                treatment_right: initialData.treatment_right,
+                drug_allergy: initialData.drug_allergy,
+                underlying_disease: initialData.underlying_disease,
+                gender: initialData.gender || 'female'
+            });
+
+            // Load Address
+            if (initialData.address) {
+                if (typeof initialData.address === 'object') {
+                    // Correctly handle structured object first
+                    // Use ?? to allow empty string "" to take precedence over fallback
+                    setAddress({
+                        houseNo: initialData.address.houseNo ?? initialData.address.full_address ?? '',
+                        moo: initialData.address.moo ?? '',
+                        tambon: initialData.address.tambon || 'มะตูม',
+                        amphoe: initialData.address.amphoe || 'พรหมพิราม',
+                        province: initialData.address.province || 'พิษณุโลก',
+                        zip: initialData.address.zip ?? ''
+                    });
+                } else if (typeof initialData.address === 'string') {
+                    setAddress(prev => ({
+                        ...prev,
+                        houseNo: initialData.address,
+                        tambon: 'มะตูม',
+                        amphoe: 'พรหมพิราม',
+                        province: 'พิษณุโลก'
+                    }));
+                }
+            }
+        }
+    }, [initialData]);
+
+    // Calculate Age for display
+    const age = formData.birthdate
+        ? new Date().getFullYear() - new Date(formData.birthdate).getFullYear()
+        : 0;
+
+    const generateHN = async () => {
+        const year = (new Date().getFullYear() + 543).toString().slice(-2);
+        const { data, error } = await supabase
+            .from('patients')
+            .select('hn')
+            .ilike('hn', `${year}%`)
+            .order('hn', { ascending: false })
+            .limit(1)
+            .single();
+
+        let running = 1;
+        if (data && data.hn) {
+            const lastRunning = parseInt(data.hn.substring(2));
+            if (!isNaN(lastRunning)) running = lastRunning + 1;
+        }
+
+        const runningStr = running.toString().padStart(4, '0');
+        return `${year}${runningStr}`;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            let resultData;
+
+            // Construct full address string for display search if needed, but saving object is better
+            const full_addr_display = `บ้านเลขที่ ${address.houseNo} หมู่ ${address.moo} ต.${address.tambon} อ.${address.amphoe} จ.${address.province}`;
+
+            const payload = {
+                ...formData,
+                // Save structured and ALSO full text for easy display if backend supports text, 
+                // but our schema is JSONB. Let's save the structure primarily.
+                // To support legacy view that expects 'full_address' key in some places?
+                // The view code uses: typeof address === 'object' ? address.full_address : address
+                // So we MUST include 'full_address' key in our JSON object for backward compatibility with display logic!
+                address: {
+                    ...address,
+                    full_address: full_addr_display
+                },
+            };
+
+            if (initialData) {
+                // UPDATE
+                const { data, error } = await supabase
+                    .from('patients')
+                    .update(payload)
+                    .eq('id', initialData.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                resultData = data;
+            } else {
+                // CREATE
+                const hn = await generateHN();
+                const { data, error } = await supabase
+                    .from('patients')
+                    .insert([{ ...payload, hn }])
+                    .select()
+                    .single();
+                if (error) throw error;
+                resultData = data;
+            }
+
+            if (resultData) {
+                onSuccess(resultData);
+            }
+        } catch (error) {
+            console.error('Registration/Update error:', error);
+            alert('เกิดข้อผิดพลาด: ' + (error as any).message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <h3 className="font-bold text-lg text-slate-800 mb-4 border-b border-slate-100 pb-2">
+                {initialData ? 'แก้ไขข้อมูลผู้ป่วย' : 'ลงทะเบียนผู้ป่วยใหม่'}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">เลขบัตรประชาชน</label>
+                    <Input
+                        required
+                        readOnly={!!initialData} // Read-only if editing
+                        value={formData.id_card}
+                        onChange={(e) => setFormData({ ...formData, id_card: e.target.value })}
+                        className={initialData ? "bg-slate-100 text-slate-500" : "bg-white"}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">คำนำหน้า</label>
+                    <select
+                        className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        value={formData.prefix}
+                        onChange={(e) => {
+                            const p = e.target.value;
+                            const g = (p === 'นาย' || p === 'เด็กชาย') ? 'male' : 'female';
+                            setFormData({ ...formData, prefix: p, gender: g });
+                        }}
+                    >
+                        <option value="เด็กชาย">เด็กชาย</option>
+                        <option value="เด็กหญิง">เด็กหญิง</option>
+                        <option value="นาย">นาย</option>
+                        <option value="นาง">นาง</option>
+                        <option value="นางสาว">นางสาว</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อ</label>
+                    <Input
+                        required
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">นามสกุล</label>
+                    <Input
+                        required
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">วันเกิด (อายุ {age > 0 ? age : '-'} ปี)</label>
+                    <Input
+                        type="date"
+                        required
+                        value={formData.birthdate}
+                        onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">เบอร์โทรศัพท์</label>
+                    <Input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">สิทธิการรักษา</label>
+                    <select
+                        className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        value={formData.treatment_right}
+                        onChange={(e) => setFormData({ ...formData, treatment_right: e.target.value })}
+                    >
+                        <option value="บัตรทอง">บัตรทอง</option>
+                        <option value="เบิกได้">เบิกได้ (ข้าราชการ/รัฐวิสาหกิจ)</option>
+                        <option value="ประกันสังคม">ประกันสังคม</option>
+                        <option value="ชำระเงินเอง">ชำระเงินเอง</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Structured Address Fields */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" /> ที่อยู่ตามทะเบียนบ้าน
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-slate-500 mb-1">บ้านเลขที่ / หมู่บ้าน / ถนน</label>
+                        <Input
+                            placeholder="เช่น 123/45 หมู่บ้าน..."
+                            value={address.houseNo}
+                            onChange={(e) => setAddress({ ...address, houseNo: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">หมู่ที่</label>
+                        <Input
+                            placeholder="-"
+                            value={address.moo}
+                            onChange={(e) => setAddress({ ...address, moo: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">ตำบล/แขวง</label>
+                        <Input
+                            placeholder="ระบุตำบล"
+                            value={address.tambon}
+                            onChange={(e) => setAddress({ ...address, tambon: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">อำเภอ/เขต</label>
+                        <Input
+                            placeholder="ระบุอำเภอ"
+                            value={address.amphoe}
+                            onChange={(e) => setAddress({ ...address, amphoe: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">จังหวัด</label>
+                        <Input
+                            placeholder="ระบุจังหวัด"
+                            value={address.province}
+                            onChange={(e) => setAddress({ ...address, province: e.target.value })}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">โรคประจำตัว</label>
+                    <Input
+                        value={formData.underlying_disease}
+                        onChange={(e) => setFormData({ ...formData, underlying_disease: e.target.value })}
+                        placeholder="ถ้ามี โปรดระบุ"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-red-600 mb-1">ประวัติแพ้ยา</label>
+                    <Input
+                        value={formData.drug_allergy}
+                        onChange={(e) => setFormData({ ...formData, drug_allergy: e.target.value })}
+                        placeholder="ถ้ามี โปรดระบุ (สำคัญ)"
+                        className="border-red-200 focus-visible:ring-red-200"
+                    />
+                </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                {onCancel && (
+                    <Button type="button" variant="ghost" onClick={onCancel} disabled={loading}>
+                        ยกเลิก
+                    </Button>
+                )}
+                <Button size="lg" type="submit" disabled={loading} className="w-full md:w-auto">
+                    <Save className="mr-2 h-4 w-4" />
+                    {loading ? 'กำลงบันทึก...' : (initialData ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูลและเริ่มการรักษา')}
+                </Button>
+            </div>
+        </form>
+    );
+}
