@@ -99,12 +99,10 @@ export default function VisitPage() {
         if (isSaving) return; // Prevent double submit
         setIsSaving(true);
         try {
-            console.log('Submitting Visit Data:', formData);
+            console.log('Submitting Visit Data (RPC):', formData);
 
-            // 1. Insert Visit
-            const visitPayload = {
-                patient_id: formData.patient_id,
-                examiner: formData.examiner,
+            // 1. Prepare Visit Data (JSON for RPC)
+            const visitData = {
                 temp: formData.temp ? parseFloat(formData.temp) : null,
                 pulse: formData.pulse ? parseInt(formData.pulse) : null,
                 resp_rate: formData.resp_rate ? parseInt(formData.resp_rate) : null,
@@ -119,45 +117,31 @@ export default function VisitPage() {
                 cc: formData.cc,
                 pe: formData.pe,
                 diagnosis: formData.diagnosis,
-                icd10_code: formData.icd10_code,
+                icd10_code: formData.icd10_code || null,
                 total_cost: formData.total_cost
             };
 
-            const { data: newVisit, error: vError } = await supabase
-                .from('visits')
-                .insert([visitPayload])
-                .select()
-                .single();
+            // 2. Prepare Prescriptions (Array for RPC)
+            const prescriptions = formData.basket.map((item: any) => ({
+                medicine_id: item.medicine_id,
+                qty: item.qty,
+                price: item.price
+            }));
 
-            if (vError) {
-                console.error('Visit Insert Error:', vError);
-                throw new Error('บันทึกข้อมูลการตรวจไม่สำเร็จ: ' + vError.message);
+            // 3. Call RPC Transaction
+            const { data, error } = await supabase.rpc('save_visit_transaction', {
+                p_patient_id: formData.patient_id,
+                p_examiner: formData.examiner,
+                p_visit_data: visitData,
+                p_prescriptions: prescriptions
+            });
+
+            if (error) {
+                console.error('RPC Save Error:', error);
+                throw new Error('บันทึกข้อมูลไม่สำเร็จ: ' + error.message);
             }
 
-            // 2. Insert Prescriptions
-            if (formData.basket.length > 0 && newVisit) {
-                const prescriptions = formData.basket.map((item: any) => ({
-                    visit_id: newVisit.id,
-                    medicine_id: item.medicine_id,
-                    qty: item.qty,
-                    price: item.price
-                }));
-                const { error: pError } = await supabase.from('prescriptions').insert(prescriptions);
-                if (pError) {
-                    console.error('Prescription Insert Error:', pError);
-                    throw new Error('บันทึกรายการยาไม่สำเร็จ: ' + pError.message);
-                }
-
-                // 3. Decrement Stock
-                for (const item of formData.basket) {
-                    // Get current stock first to be safe or just decrement
-                    // Ideally use RPC
-                    const { data: med } = await supabase.from('medicines').select('stock_qty').eq('id', item.medicine_id).single();
-                    if (med) {
-                        await supabase.from('medicines').update({ stock_qty: med.stock_qty - item.qty }).eq('id', item.medicine_id);
-                    }
-                }
-            }
+            console.log('Transaction Success:', data);
 
             alert('บันทึกข้อมูลเรียบร้อยแล้ว');
             router.push('/patients/' + formData.patient_id); // Go back to patient history
