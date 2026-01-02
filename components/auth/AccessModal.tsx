@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Lock, KeyRound, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 
-const ACCESS_KEY = 'daly4742';
-const STORAGE_KEY = 'clinic_access_token';
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 1 Day in ms
+const STAFF_EMAIL = 'staff@clinic.com';
 
 export default function AccessModal() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -15,39 +14,42 @@ export default function AccessModal() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check local storage on mount with expiration
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                const { key, timestamp } = JSON.parse(stored);
-                const now = new Date().getTime();
-
-                if (key === ACCESS_KEY && (now - timestamp < SESSION_DURATION)) {
-                    setIsAuthenticated(true);
-                } else {
-                    // Expired or invalid
-                    localStorage.removeItem(STORAGE_KEY);
-                }
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                setIsAuthenticated(true);
             }
-        } catch (e) {
-            localStorage.removeItem(STORAGE_KEY);
-        }
-        setIsLoading(false);
+            setIsLoading(false);
+        };
+        checkSession();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) setIsAuthenticated(true);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (inputValue === ACCESS_KEY) {
-            const sessionData = {
-                key: ACCESS_KEY,
-                timestamp: new Date().getTime()
-            };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
-            setIsAuthenticated(true);
-            setError(false);
-        } else {
+        setError(false);
+
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: STAFF_EMAIL,
+                password: inputValue
+            });
+
+            if (error) {
+                console.error('Login failed:', error.message);
+                setError(true);
+                setInputValue('');
+            } else if (data.session) {
+                setIsAuthenticated(true);
+            }
+        } catch (err) {
             setError(true);
-            setInputValue('');
         }
     };
 

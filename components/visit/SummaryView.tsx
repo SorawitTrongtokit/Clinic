@@ -9,9 +9,10 @@ interface SummaryViewProps {
     onSave?: () => void;
     isNew?: boolean;
     visitId?: string; // Optional if new
+    isSaving?: boolean;
 }
 
-export default function SummaryView({ data, onSave, isNew, visitId }: SummaryViewProps) {
+export default function SummaryView({ data, onSave, isNew, visitId, isSaving }: SummaryViewProps) {
     if (!data) return <div>Loading Summary...</div>;
 
     const { patients, patient, basket, total_cost, examiner, weight, height, bp_sys, bp_dia, temp, pulse, resp_rate, cc, pe, alcohol, smoking, urgency, diagnosis } = data;
