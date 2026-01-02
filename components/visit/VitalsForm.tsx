@@ -6,35 +6,27 @@ import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/supabase';
 
 interface VitalsFormProps {
-    visitId: string;
     initialData?: any;
-    onNext: () => void;
+    onNext: (data: any) => void;
 }
 
-export default function VitalsForm({ visitId, initialData, onNext }: VitalsFormProps) {
-    const [loading, setLoading] = useState(false);
+export default function VitalsForm({ initialData, onNext }: VitalsFormProps) {
     const [vitals, setVitals] = useState({
-        temp: '',
-        pulse: '',
-        resp_rate: '',
-        bp_sys: '',
-        bp_dia: '',
-        weight: '',
-        height: '',
-        bmi: '',
+        temp: initialData?.temp || '',
+        pulse: initialData?.pulse || '',
+        resp_rate: initialData?.resp_rate || '',
+        bp_sys: initialData?.bp_sys || '',
+        bp_dia: initialData?.bp_dia || '',
+        weight: initialData?.weight || '',
+        height: initialData?.height || '',
+        bmi: initialData?.bmi || '',
     });
 
     const [screening, setScreening] = useState({
-        urgency: 'ไม่ฉุกเฉิน',
-        alcohol: false,
-        smoking: false,
+        urgency: initialData?.urgency || 'ไม่ฉุกเฉิน',
+        alcohol: initialData?.alcohol || false,
+        smoking: initialData?.smoking || false,
     });
-
-    useEffect(() => {
-        if (initialData) {
-            // if we have saved data, load it. todo.
-        }
-    }, [initialData]);
 
     // Auto Calc BMI
     useEffect(() => {
@@ -46,38 +38,12 @@ export default function VitalsForm({ visitId, initialData, onNext }: VitalsFormP
         }
     }, [vitals.weight, vitals.height]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-
-        try {
-            const payload = {
-                temp: vitals.temp ? parseFloat(vitals.temp) : null,
-                pulse: vitals.pulse ? parseInt(vitals.pulse) : null,
-                resp_rate: vitals.resp_rate ? parseInt(vitals.resp_rate) : null,
-                bp_sys: vitals.bp_sys ? parseInt(vitals.bp_sys) : null,
-                bp_dia: vitals.bp_dia ? parseInt(vitals.bp_dia) : null,
-                weight: vitals.weight ? parseFloat(vitals.weight) : null,
-                height: vitals.height ? parseFloat(vitals.height) : null,
-                bmi: vitals.bmi ? parseFloat(vitals.bmi) : null,
-                urgency: screening.urgency,
-                alcohol: screening.alcohol,
-                smoking: screening.smoking,
-            };
-
-            const { error } = await supabase
-                .from('visits')
-                .update(payload)
-                .eq('id', visitId);
-
-            if (error) throw error;
-            onNext();
-        } catch (error) {
-            console.error('Error saving vitals:', error);
-            alert('บันทึกข้อมูลไม่สำเร็จ');
-        } finally {
-            setLoading(false);
-        }
+        onNext({
+            ...vitals,
+            ...screening
+        });
     };
 
     return (
@@ -222,7 +188,7 @@ export default function VitalsForm({ visitId, initialData, onNext }: VitalsFormP
                 </div>
 
                 <div className="mt-8 flex justify-end">
-                    <Button type="submit" size="lg" disabled={loading} variant="primary">
+                    <Button type="submit" size="lg" variant="primary">
                         ถัดไป: ตรวจรักษา
                     </Button>
                 </div>

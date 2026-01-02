@@ -32,7 +32,7 @@ export default function RootLayout({
         className={`${kanit.variable} ${sarabun.variable} font-sans antialiased bg-slate-50 text-slate-900`}
       >
         <Sidebar />
-        <div className="pl-64 min-h-screen">
+        <div className="pl-64 min-h-screen print:pl-0">
           {children}
         </div>
       </body>

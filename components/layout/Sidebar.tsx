@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Stethoscope, Users, Pill, FileText, ClipboardList, Home } from 'lucide-react';
-import { cn } from '@/lib/utils'; // Assuming you have a utils file, if not I'll just use template literals
 
 // Simple utility if cn doesn't exist yet, but usually shadcn setups have it.
 // If it errors, I'll fix it. The codebase seems to use standard className strings mostly.
@@ -25,7 +24,7 @@ export default function Sidebar() {
     ];
 
     return (
-        <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-white/90 backdrop-blur-xl border-r border-slate-200 transition-transform">
+        <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-white/90 backdrop-blur-xl border-r border-slate-200 transition-transform print:hidden">
             <div className="h-full px-4 py-6 overflow-y-auto flex flex-col">
                 {/* Logo Area */}
                 <div className="flex items-center gap-3 mb-10 px-2">

@@ -1,17 +1,80 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { UserSearch, Pill, FileText, Activity, ShieldCheck, Clock } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { UserSearch, Pill, Activity, Users, CreditCard, TrendingUp, Calendar, ArrowRight, Clock, ShieldCheck, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Home() {
+  const [stats, setStats] = useState({
+    totalPatients: 0,
+    visitsToday: 0,
+    incomeToday: 0,
+    monthlyIncome: 0
+  });
+  const [recentVisits, setRecentVisits] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      // 1. Total Patients
+      const { count: patientCount } = await supabase
+        .from('patients')
+        .select('*', { count: 'exact', head: true });
+
+      // 2. Visits Today & Income
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today local time
+
+      const { data: visits } = await supabase
+        .from('visits')
+        .select('total_cost, created_at')
+        .gte('created_at', today.toISOString());
+
+      const todayCount = visits?.length || 0;
+      const todayIncome = visits?.reduce((sum, v) => sum + (v.total_cost || 0), 0) || 0;
+
+      // 3. Monthly Income (This month)
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const { data: monthlyVisits } = await supabase
+        .from('visits')
+        .select('total_cost')
+        .gte('created_at', firstDayOfMonth.toISOString());
+
+      const monIncome = monthlyVisits?.reduce((sum, v) => sum + (v.total_cost || 0), 0) || 0;
+
+      // 4. Recent Visits (Limit 5)
+      const { data: recents } = await supabase
+        .from('visits')
+        .select('*, patients(first_name, last_name)')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      setStats({
+        totalPatients: patientCount || 0,
+        visitsToday: todayCount,
+        incomeToday: todayIncome,
+        monthlyIncome: monIncome
+      });
+      if (recents) setRecentVisits(recents);
+
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const container = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+      transition: { staggerChildren: 0.1 }
     }
   };
 
@@ -21,132 +84,167 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent font-sans">
-      <main className="container mx-auto py-12 px-4 relative">
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-blue-50/50 to-transparent -z-10 pointer-events-none" />
+    <div className="min-h-screen bg-slate-50/50 font-sans p-6">
+      <main className="container mx-auto max-w-7xl">
 
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-12 text-center relative"
-        >
-          <div className="inline-block p-2 px-4 rounded-full bg-blue-100 text-blue-700 text-xs font-bold mb-4 tracking-wide uppercase shadow-sm border border-blue-200">
-            ระบบบริหารจัดการคลินิก
+        {/* Header */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800">แดชบอร์ดภาพรวม</h1>
+            <p className="text-slate-500">ยินดีต้อนรับกลับ, ไผ่ขอน้ำคลินิก</p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight mb-4 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-            ยินดีต้อนรับสู่ <span className="text-blue-600">ไผ่ขอน้ำคลินิก</span>
-          </h1>
-          <p className="text-slate-500 mt-2 text-lg md:text-xl font-light max-w-2xl mx-auto">
-            ระบบเวชระเบียนและการจัดการคลินิกทันสมัย เพื่อการดูแลผู้ป่วยที่มีประสิทธิภาพ
-          </p>
-        </motion.div>
+          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200">
+            <Calendar className="h-4 w-4 text-slate-400" />
+            <span className="text-sm font-medium text-slate-600">
+              {new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+          </div>
+        </div>
 
+        {/* Stats Grid */}
         <motion.div
           variants={container}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10"
         >
-          {/* OPD Card */}
-          <motion.div variants={item}>
-            <Link href="/patients" className="group block h-full">
-              <div className="bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-sm border border-slate-200/60 hover:shadow-xl hover:-translate-y-2 hover:border-blue-300 transition-all duration-300 flex flex-col items-center text-center cursor-pointer h-full relative overflow-hidden group-hover:bg-white">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                <div className="w-20 h-20 bg-blue-100/50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-blue-100 transition-all duration-300 shadow-inner relative z-10">
-                  <UserSearch className="h-10 w-10 text-blue-600" />
-                </div>
-
-                <h2 className="text-2xl font-bold text-slate-800 mb-3 relative z-10 group-hover:text-blue-700 transition-colors">ค้นหา/ลงทะเบียน</h2>
-                <p className="text-slate-500 text-sm leading-relaxed relative z-10 group-hover:text-slate-600">
-                  ค้นหาประวัติผู้ป่วยเดิม ตรวจสอบสิทธิ หรือลงทะเบียนผู้ป่วยใหม่เพื่อเริ่มการรักษา
-                </p>
-
-                <div className="mt-auto pt-6 w-full relative z-10">
-                  <span className="inline-flex items-center text-sm font-semibold text-blue-600 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                    เข้าสู่ระบบ <span className="ml-1">→</span>
-                  </span>
-                </div>
-              </div>
-            </Link>
+          {/* Card 1: Visits Today */}
+          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-1">ผู้ป่วยวันนี้</p>
+              <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : stats.visitsToday}</h3>
+              <p className="text-xs text-green-600 font-medium flex items-center mt-2">
+                <TrendingUp className="h-3 w-3 mr-1" /> รายวัน
+              </p>
+            </div>
+            <div className="h-12 w-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+              <Users className="h-6 w-6" />
+            </div>
           </motion.div>
 
-          {/* Stock Card */}
-          <motion.div variants={item}>
-            <Link href="/stock" className="group block h-full">
-              <div className="bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-sm border border-slate-200/60 hover:shadow-xl hover:-translate-y-2 hover:border-teal-300 transition-all duration-300 flex flex-col items-center text-center cursor-pointer h-full relative overflow-hidden group-hover:bg-white">
-                <div className="absolute inset-0 bg-gradient-to-br from-teal-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                <div className="w-20 h-20 bg-teal-100/50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-teal-100 transition-all duration-300 shadow-inner relative z-10">
-                  <Pill className="h-10 w-10 text-teal-600" />
-                </div>
-
-                <h2 className="text-2xl font-bold text-slate-800 mb-3 relative z-10 group-hover:text-teal-700 transition-colors">คลังยา</h2>
-                <p className="text-slate-500 text-sm leading-relaxed relative z-10 group-hover:text-slate-600">
-                  บริหารจัดการรายการยา เพิ่มยาใหม่ ปรับปรุงสต็อก และตรวจสอบวันหมดอายุ
-                </p>
-
-                <div className="mt-auto pt-6 w-full relative z-10">
-                  <span className="inline-flex items-center text-sm font-semibold text-teal-600 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                    จัดการสต็อก <span className="ml-1">→</span>
-                  </span>
-                </div>
-              </div>
-            </Link>
+          {/* Card 2: Income Today */}
+          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-1">รายรับวันนี้</p>
+              <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : `฿${stats.incomeToday.toLocaleString()}`}</h3>
+              <p className="text-xs text-green-600 font-medium flex items-center mt-2">
+                <TrendingUp className="h-3 w-3 mr-1" /> ยอดขาย
+              </p>
+            </div>
+            <div className="h-12 w-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
+              <CreditCard className="h-6 w-6" />
+            </div>
           </motion.div>
 
-          {/* Reports Card - Placeholder */}
-          <motion.div variants={item}>
-            <div className="group block h-full opacity-70 hover:opacity-100 transition-opacity">
-              <div className="bg-white/60 backdrop-blur-sm p-8 rounded-3xl shadow-sm border border-slate-200/60 hover:shadow-md transition-all duration-300 flex flex-col items-center text-center h-full relative overflow-hidden cursor-not-allowed grayscale-[0.8] hover:grayscale-0">
-                <div className="w-20 h-20 bg-orange-100/50 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10">
-                  <Activity className="h-10 w-10 text-orange-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-3 relative z-10">รายงานสรุป</h2>
-                <p className="text-slate-500 text-sm leading-relaxed relative z-10">
-                  (เร็วๆนี้) ดูสรุปยอดรายรับ-รายจ่าย สถิติผู้ป่วย และรายงานประจำเดือน
-                </p>
-                <div className="mt-auto pt-6 w-full relative z-10">
-                  <span className="inline-flex items-center text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-full">
-                    Coming Phase 2
-                  </span>
-                </div>
-              </div>
+          {/* Card 3: Monthly Income */}
+          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-1">รายรับเดือนนี้</p>
+              <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : `฿${stats.monthlyIncome.toLocaleString()}`}</h3>
+              <p className="text-xs text-slate-400 font-medium mt-2">
+                สะสมทั้งเดือน
+              </p>
+            </div>
+            <div className="h-12 w-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
+              <Activity className="h-6 w-6" />
+            </div>
+          </motion.div>
+
+          {/* Card 4: Total Patients */}
+          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-1">ทะเบียนผู้ป่วยรวม</p>
+              <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : stats.totalPatients.toLocaleString()}</h3>
+              <p className="text-xs text-slate-400 font-medium mt-2">
+                คน
+              </p>
+            </div>
+            <div className="h-12 w-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600">
+              <UserSearch className="h-6 w-6" />
             </div>
           </motion.div>
         </motion.div>
 
-        {/* Quick Stats / Info Widget */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="mt-16 max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
-          <div className="bg-white/60 backdrop-blur p-4 rounded-2xl border border-slate-200 flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl text-blue-600"><Clock className="h-6 w-6" /></div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">เวลาเปิดทำการ</p>
-              <p className="text-slate-800 font-bold">08:00 - 20:00 น.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Recent Visits Table */}
+          <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-800">ผู้ป่วยล่าสุด</h3>
+              <Link href="/records" className="text-sm text-blue-600 font-medium hover:underline flex items-center">
+                ดูทั้งหมด <ArrowRight className="h-4 w-4 ml-1" />
+              </Link>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-slate-50/50">
+                  <tr>
+                    <th className="px-4 py-3 rounded-l-lg">เวลา</th>
+                    <th className="px-4 py-3">ชื่อ-สกุล</th>
+                    <th className="px-4 py-3">อาการ (CC)</th>
+                    <th className="px-4 py-3">วินิจฉัย</th>
+                    <th className="px-4 py-3 text-right rounded-r-lg">ค่ารักษา</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">กำลังโหลด...</td></tr>
+                  ) : recentVisits.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">ไม่มีข้อมูลการตรวจล่าสุด</td></tr>
+                  ) : recentVisits.map((visit) => (
+                    <tr key={visit.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-500">
+                        {new Date(visit.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-800">
+                        {visit.patients?.first_name} {visit.patients?.last_name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 truncate max-w-[150px]">{visit.cc || '-'}</td>
+                      <td className="px-4 py-3 text-slate-600 truncate max-w-[150px]">{visit.icd10_code ? <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{visit.icd10_code}</span> : '-'}</td>
+                      <td className="px-4 py-3 text-right font-bold text-slate-700">฿{visit.total_cost?.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-          <div className="bg-white/60 backdrop-blur p-4 rounded-2xl border border-slate-200 flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl text-green-600"><ShieldCheck className="h-6 w-6" /></div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">ใบอนุญาตเลขที่</p>
-              <p className="text-slate-800 font-bold">1234567890</p>
-            </div>
-          </div>
-          <div className="bg-white/60 backdrop-blur p-4 rounded-2xl border border-slate-200 flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-xl text-purple-600"><UserSearch className="h-6 w-6" /></div>
-            <div>
-              <p className="text-xs text-slate-500 font-medium">ผู้ปฏิบัติงาน</p>
-              <p className="text-slate-800 font-bold">พยาบาลวิชาชีพ</p>
-            </div>
-          </div>
-        </motion.div>
 
+          {/* Quick Actions */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-lg shadow-blue-200">
+              <h3 className="text-lg font-bold mb-2">ลงทะเบียนใหม่</h3>
+              <p className="text-blue-100 text-sm mb-6">เริ่มต้นการตรวจรักษา ค้นหาผู้ป่วย หรือลงทะเบียนใหม่</p>
+              <Link href="/patients">
+                <button className="w-full bg-white text-blue-600 font-bold py-3 rounded-xl shadow hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
+                  <UserSearch className="h-5 w-5" /> ไปที่จุดต้อนรับ
+                </button>
+              </Link>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">เมนูลัด</h3>
+              <div className="space-y-3">
+                <Link href="/stock" className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors border border-transparent hover:border-slate-100 group">
+                  <div className="h-10 w-10 bg-teal-50 text-teal-600 rounded-lg flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+                    <Pill className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-700">คลังยา</p>
+                    <p className="text-xs text-slate-400">จัดการสต็อกยา</p>
+                  </div>
+                </Link>
+                <Link href="/records" className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors border border-transparent hover:border-slate-100 group">
+                  <div className="h-10 w-10 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-700">ค้นหาประวัติ</p>
+                    <p className="text-xs text-slate-400">ดูประวัติย้อนหลัง</p>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );

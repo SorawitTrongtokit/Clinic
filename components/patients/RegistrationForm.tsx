@@ -183,6 +183,7 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">คำนำหน้า</label>
                     <select
+                        aria-label="เลือกคำนำหน้า"
                         className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.prefix}
                         onChange={(e) => {
@@ -239,6 +240,7 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">สิทธิการรักษา</label>
                     <select
+                        aria-label="เลือกสิทธิการรักษา"
                         className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.treatment_right}
                         onChange={(e) => setFormData({ ...formData, treatment_right: e.target.value })}

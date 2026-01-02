@@ -13,61 +13,167 @@ import SummaryView from '@/components/visit/SummaryView';
 export default function VisitPage() {
     const { id } = useParams();
     const router = useRouter();
-    const [visit, setVisit] = useState<any>(null);
-    const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(true);
-    // Determine if we should start in view mode (Step 4)
-    // We can check query param or if the visit is "completed" (has total_cost/diagnosis)
+    const [isSaving, setIsSaving] = useState(false);
+    const [step, setStep] = useState(1);
+
+    // Consolidated State for New Visit
+    const [formData, setFormData] = useState({
+        patient_id: '',
+        patient: null as any, // Patient details
+        ...initialVitals,
+        ...initialDiagnosis,
+        basket: [] as any[], // prescriptions
+        total_cost: 0,
+        examiner: 'น.ส.ภัทรภร พวงอุบล'
+    });
+
+    const isNew = id === 'new';
 
     useEffect(() => {
-        if (visit) {
-            // Logic to auto-jump to summary if detailed data exists usually implies a past visit
-            // OR if a query param ?mode=view is present (we can add this to the router push)
-            const isCompleted = visit.total_cost || visit.diagnosis; // Simple heuristic
+        if (isNew) {
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get('patient_id');
+            if (pid) {
+                fetchPatient(pid);
+            } else {
+                router.push('/patients');
+            }
+        } else {
+            fetchExistingVisit();
+        }
+    }, [id]);
+
+    const fetchPatient = async (pid: string) => {
+        const { data, error } = await supabase.from('patients').select('*').eq('id', pid).single();
+        if (data) {
+            setFormData(prev => ({ ...prev, patient_id: pid, patient: data }));
+            setLoading(false);
+        } else {
+            alert('Patient not found');
+            router.push('/patients');
+        }
+    };
+
+    const fetchExistingVisit = async () => {
+        if (!id) return;
+        const { data, error } = await supabase
+            .from('visits')
+            .select('*, patients(*), prescriptions(*, medicines(*))')
+            .eq('id', id)
+            .single();
+
+        if (data) {
+            // Map existing data to formData structure for viewing/editing if needed
+            // For now, we mainly use it for viewing.
+            setFormData({
+                ...data, // naive spread, might need explicit mapping
+                patient: data.patients,
+                basket: data.prescriptions?.map((p: any) => ({
+                    medicine_id: p.medicine_id,
+                    name: p.medicines?.name,
+                    qty: p.qty,
+                    price: p.price,
+                    unit: p.medicines?.unit
+                })) || []
+            });
+            setLoading(false);
+
+            // Check if completed to auto-switch to summary
+            const isCompleted = data.total_cost || data.diagnosis;
             const searchParams = new URLSearchParams(window.location.search);
             if (searchParams.get('mode') === 'view' || isCompleted) {
                 setStep(4);
             }
+        } else {
+            alert('Visit not found');
+            router.push('/patients');
         }
-    }, [visit]);
+    };
 
-    const fetchVisit = useCallback(async () => {
-        if (!id) return; // Ensure id is available before fetching
+    const updateFormData = (updates: any) => {
+        setFormData(prev => ({ ...prev, ...updates }));
+    };
+
+    const handleFinalSave = async () => {
+        if (isSaving) return; // Prevent double submit
+        setIsSaving(true);
         try {
-            const { data, error } = await supabase
+            console.log('Submitting Visit Data:', formData);
+
+            // 1. Insert Visit
+            const visitPayload = {
+                patient_id: formData.patient_id,
+                examiner: formData.examiner,
+                temp: formData.temp ? parseFloat(formData.temp) : null,
+                pulse: formData.pulse ? parseInt(formData.pulse) : null,
+                resp_rate: formData.resp_rate ? parseInt(formData.resp_rate) : null,
+                bp_sys: formData.bp_sys ? parseInt(formData.bp_sys) : null,
+                bp_dia: formData.bp_dia ? parseInt(formData.bp_dia) : null,
+                weight: formData.weight ? parseFloat(formData.weight) : null,
+                height: formData.height ? parseFloat(formData.height) : null,
+                bmi: formData.bmi ? parseFloat(formData.bmi) : null,
+                urgency: formData.urgency,
+                alcohol: formData.alcohol,
+                smoking: formData.smoking,
+                cc: formData.cc,
+                pe: formData.pe,
+                diagnosis: formData.diagnosis,
+                icd10_code: formData.icd10_code,
+                total_cost: formData.total_cost
+            };
+
+            const { data: newVisit, error: vError } = await supabase
                 .from('visits')
-                .select('*, patients(*), prescriptions(*, medicines(*))') // Fetch prescriptions and meds
-                .eq('id', id)
+                .insert([visitPayload])
+                .select()
                 .single();
 
-            if (error) throw error;
-            if (data) {
-                setVisit(data);
+            if (vError) {
+                console.error('Visit Insert Error:', vError);
+                throw new Error('บันทึกข้อมูลการตรวจไม่สำเร็จ: ' + vError.message);
             }
-        } catch (err) {
-            console.error(err);
-            alert('ไม่พบข้อมูลการตรวจ');
-            router.push('/patients');
+
+            // 2. Insert Prescriptions
+            if (formData.basket.length > 0 && newVisit) {
+                const prescriptions = formData.basket.map((item: any) => ({
+                    visit_id: newVisit.id,
+                    medicine_id: item.medicine_id,
+                    qty: item.qty,
+                    price: item.price
+                }));
+                const { error: pError } = await supabase.from('prescriptions').insert(prescriptions);
+                if (pError) {
+                    console.error('Prescription Insert Error:', pError);
+                    throw new Error('บันทึกรายการยาไม่สำเร็จ: ' + pError.message);
+                }
+
+                // 3. Decrement Stock
+                for (const item of formData.basket) {
+                    // Get current stock first to be safe or just decrement
+                    // Ideally use RPC
+                    const { data: med } = await supabase.from('medicines').select('stock_qty').eq('id', item.medicine_id).single();
+                    if (med) {
+                        await supabase.from('medicines').update({ stock_qty: med.stock_qty - item.qty }).eq('id', item.medicine_id);
+                    }
+                }
+            }
+
+            alert('บันทึกข้อมูลเรียบร้อยแล้ว');
+            router.push('/patients/' + formData.patient_id); // Go back to patient history
+
+        } catch (error: any) {
+            console.error('Final Save Error:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึก: ' + (error.message || JSON.stringify(error)));
         } finally {
-            setLoading(false);
+            setIsSaving(false);
         }
-    }, [id, router]); // Dependencies for useCallback
-
-    useEffect(() => {
-        if (id) {
-            fetchVisit();
-        }
-    }, [id, fetchVisit]); // fetchVisit is now a dependency
-
-    // Refresh data when entering Summary step
-    useEffect(() => {
-        if (step === 4 && id) {
-            fetchVisit();
-        }
-    }, [step, id, fetchVisit]); // fetchVisit is now a dependency
+    };
 
     if (loading) return <div className="p-10 text-center">กำลังโหลดข้อมูล...</div>;
-    if (!visit) return null;
+    if (!formData.patient) return null;
+
+    const patientInfo = formData.patient;
 
     const steps = [
         { num: 1, label: 'คัดกรอง' },
@@ -83,19 +189,19 @@ export default function VisitPage() {
                 <div className="container mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-xl font-bold text-slate-800">
-                            {visit.patients.prefix} {visit.patients.first_name} {visit.patients.last_name}
+                            {patientInfo.prefix} {patientInfo.first_name} {patientInfo.last_name}
                         </h1>
                         <div className="flex gap-3 text-sm text-slate-500 mt-1">
-                            <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">HN: {visit.patients.hn}</span>
-                            <span>อายุ: {new Date().getFullYear() - new Date(visit.patients.birthdate).getFullYear()} ปี</span>
-                            <span>สิทธิ: {visit.patients.treatment_right}</span>
-                            {visit.patients.drug_allergy && (
-                                <span className="text-red-600 font-bold bg-red-50 px-2 rounded">แพ้วยา: {visit.patients.drug_allergy}</span>
+                            <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">HN: {patientInfo.hn}</span>
+                            <span>อายุ: {new Date().getFullYear() - new Date(patientInfo.birthdate).getFullYear()} ปี</span>
+                            <span>สิทธิ: {patientInfo.treatment_right}</span>
+                            {patientInfo.drug_allergy && (
+                                <span className="text-red-600 font-bold bg-red-50 px-2 rounded">แพ้ยา: {patientInfo.drug_allergy}</span>
                             )}
                         </div>
                     </div>
                     <div>
-                        <span className="text-slate-400 text-sm">ผู้ตรวจ: {visit.examiner}</span>
+                        <span className="text-slate-400 text-sm">ผู้ตรวจ: {formData.examiner}</span>
                     </div>
                 </div>
             </div>
@@ -120,27 +226,52 @@ export default function VisitPage() {
 
                 <div className="max-w-4xl mx-auto">
                     {step === 1 && (
-                        <VitalsForm visitId={id as string} onNext={() => setStep(2)} />
+                        <VitalsForm
+                            initialData={formData}
+                            onNext={(data) => {
+                                updateFormData(data);
+                                setStep(2);
+                            }}
+                        />
                     )}
                     {step === 2 && (
                         <DiagnosisForm
-                            visitId={id as string}
-                            onNext={() => setStep(3)}
+                            initialData={formData}
+                            onNext={(data) => {
+                                updateFormData(data);
+                                setStep(3);
+                            }}
                             onBack={() => setStep(1)}
                         />
                     )}
                     {step === 3 && (
                         <MedicationForm
-                            visitId={id as string}
-                            onNext={() => setStep(4)}
+                            initialData={formData}
+                            onNext={(data) => {
+                                updateFormData(data);
+                                setStep(4);
+                            }}
                             onBack={() => setStep(2)}
                         />
                     )}
                     {step === 4 && (
-                        <SummaryView visitId={id as string} visitData={visit} />
+                        <SummaryView
+                            data={formData}
+                            onSave={isNew ? handleFinalSave : undefined}
+                            isNew={isNew}
+                            isSaving={isSaving}
+                        />
                     )}
                 </div>
             </div>
         </div>
     );
 }
+
+const initialVitals = {
+    temp: '', pulse: '', resp_rate: '', bp_sys: '', bp_dia: '', weight: '', height: '', bmi: '',
+    urgency: 'ไม่ฉุกเฉิน', alcohol: false, smoking: false
+};
+const initialDiagnosis = {
+    cc: '', pe: '', diagnosis: '', icd10_code: ''
+};

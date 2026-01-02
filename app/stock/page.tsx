@@ -198,10 +198,18 @@ export default function StockPage() {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center gap-2">
-                                                    <button onClick={() => handleEdit(med)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                                                    <button
+                                                        onClick={() => handleEdit(med)}
+                                                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                        aria-label="แก้ไขข้อมูลยา"
+                                                    >
                                                         <Edit2 className="h-4 w-4" />
                                                     </button>
-                                                    <button onClick={() => handleDelete(med.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                                                    <button
+                                                        onClick={() => handleDelete(med.id)}
+                                                        className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                                        aria-label="ลบข้อมูลยา"
+                                                    >
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 </div>

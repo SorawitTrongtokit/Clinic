@@ -53,10 +53,7 @@ export default function PrintLabelsPage() {
                 {prescriptions.map((item: any, idx: number) => (
                     <div
                         key={idx}
-                        className="bg-white p-2 border border-slate-300 w-[8cm] h-[5cm] relative shadow-sm print:shadow-none print:border-0 print:mb-0 break-inside-avoid page-break-after-always overflow-hidden"
-                        style={{
-                            pageBreakAfter: idx < prescriptions.length - 1 ? 'always' : 'auto'
-                        }}
+                        className={`bg-white p-2 border border-slate-300 w-[8cm] h-[5cm] relative shadow-sm print:shadow-none print:border-0 print:mb-0 break-inside-avoid overflow-hidden ${idx < prescriptions.length - 1 ? 'page-break-after-always' : ''}`}
                     >
                         {/* 8cm x 5cm Container */}
                         <div className="h-full flex flex-col justify-between text-black font-sarabun leading-tight">

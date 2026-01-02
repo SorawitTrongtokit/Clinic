@@ -5,14 +5,21 @@ import { Button } from '@/components/ui/Button';
 import { Printer, Home, FileText, Activity, Stethoscope, Pill } from 'lucide-react';
 
 interface SummaryViewProps {
-    visitId: string;
-    visitData: any; // Contains all joined data
+    data: any; // Contains all joined data
+    onSave?: () => void;
+    isNew?: boolean;
+    visitId?: string; // Optional if new
 }
 
-export default function SummaryView({ visitId, visitData }: SummaryViewProps) {
-    if (!visitData) return <div>Loading Summary...</div>;
+export default function SummaryView({ data, onSave, isNew, visitId }: SummaryViewProps) {
+    if (!data) return <div>Loading Summary...</div>;
 
-    const { patients, vitals, diagnosis, icd10_code, total_cost, examiner, prescriptions, weight, height, bp_sys, bp_dia, temp, pulse, resp_rate, spo2, cc, pe, alcohol, smoking, urgency } = visitData;
+    const { patients, patient, basket, total_cost, examiner, weight, height, bp_sys, bp_dia, temp, pulse, resp_rate, cc, pe, alcohol, smoking, urgency, diagnosis } = data;
+    const pt = patients || patient; // Handle both structure types
+    const items = basket || [];
+
+    // Should we show save button?
+    const canSave = isNew && onSave;
 
     return (
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
@@ -21,7 +28,8 @@ export default function SummaryView({ visitId, visitData }: SummaryViewProps) {
                     <FileText className="w-6 h-6" />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-800">สรุปผลการตรวจรักษา</h2>
-                <p className="text-slate-500">HN: {patients.hn} | วันที่: {new Date(visitData.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                <p className="text-slate-500">HN: {pt?.hn} | วันที่: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                {isNew && <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full font-bold ml-2">รอการบันทึก</span>}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -76,29 +84,27 @@ export default function SummaryView({ visitId, visitData }: SummaryViewProps) {
                             <tr>
                                 <th className="px-4 py-3">รายการ</th>
                                 <th className="px-4 py-3 text-center">จำนวน</th>
-                                <th className="px-4 py-3">วิธีใช้</th>
                                 <th className="px-4 py-3 text-right">ราคา</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {prescriptions && prescriptions.length > 0 ? (
-                                prescriptions.map((p: any, idx: number) => (
+                            {items && items.length > 0 ? (
+                                items.map((p: any, idx: number) => (
                                     <tr key={idx}>
-                                        <td className="px-4 py-3 font-medium text-slate-700">{p.medicines?.name}</td>
-                                        <td className="px-4 py-3 text-center">{p.quantity}</td>
-                                        <td className="px-4 py-3 text-slate-500">{p.medicines?.instruction || '-'}</td>
-                                        <td className="px-4 py-3 text-right">฿{(p.price * p.quantity).toLocaleString()}</td>
+                                        <td className="px-4 py-3 font-medium text-slate-700">{p.name || p.medicines?.name}</td>
+                                        <td className="px-4 py-3 text-center">{p.qty || p.quantity} {p.unit || p.medicines?.unit}</td>
+                                        <td className="px-4 py-3 text-right">฿{(p.price * (p.qty || p.quantity)).toLocaleString()}</td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400">ไม่มีรายการยา</td>
+                                    <td colSpan={3} className="px-4 py-8 text-center text-slate-400">ไม่มีรายการยา</td>
                                 </tr>
                             )}
                         </tbody>
                         <tfoot className="bg-slate-50 font-bold text-slate-800">
                             <tr>
-                                <td colSpan={3} className="px-4 py-3 text-right">รวมทั้งสิ้น</td>
+                                <td colSpan={2} className="px-4 py-3 text-right">รวมทั้งสิ้น</td>
                                 <td className="px-4 py-3 text-right text-blue-700 bg-blue-50/50 border-t border-blue-100">
                                     ฿{(total_cost || 0).toLocaleString()}
                                 </td>
@@ -109,24 +115,37 @@ export default function SummaryView({ visitId, visitData }: SummaryViewProps) {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4 border-t border-slate-100">
-                <Link href={`/print/visit/${visitId}`} target="_blank">
-                    <Button variant="primary" size="lg" className="w-full sm:w-auto gap-2 shadow-blue-300 shadow-lg">
-                        <Printer className="w-5 h-5" />
-                        พิมพ์ใบรับรอง/ใบเสร็จ
+                {canSave ? (
+                    <Button onClick={onSave} variant="primary" size="lg" className="w-full sm:w-auto gap-2 shadow-blue-300 shadow-lg animate-pulse">
+                        <FileText className="w-5 h-5" />
+                        ยืนยันและบันทึกข้อมูล
                     </Button>
-                </Link>
-                <Link href={`/print/labels/${visitId}`} target="_blank">
-                    <Button variant="secondary" size="lg" className="w-full sm:w-auto gap-2 shadow-teal-300 shadow-lg">
-                        <Printer className="w-5 h-5" />
-                        พิมพ์สติ๊กเกอร์ยา
-                    </Button>
-                </Link>
-                <Link href="/records">
-                    <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2">
-                        <Home className="w-5 h-5" />
-                        กลับหน้าทะเบียน
-                    </Button>
-                </Link>
+                ) : (
+                    <>
+                        {visitId && (
+                            <>
+                                <Link href={`/print/visit/${visitId}`} target="_blank">
+                                    <Button variant="primary" size="lg" className="w-full sm:w-auto gap-2 shadow-blue-300 shadow-lg">
+                                        <Printer className="w-5 h-5" />
+                                        พิมพ์ใบรับรอง/ใบเสร็จ
+                                    </Button>
+                                </Link>
+                                <Link href={`/print/labels/${visitId}`} target="_blank">
+                                    <Button variant="secondary" size="lg" className="w-full sm:w-auto gap-2 shadow-teal-300 shadow-lg">
+                                        <Printer className="w-5 h-5" />
+                                        พิมพ์สติ๊กเกอร์ยา
+                                    </Button>
+                                </Link>
+                            </>
+                        )}
+                        <Link href="/records">
+                            <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2">
+                                <Home className="w-5 h-5" />
+                                กลับหน้าทะเบียน
+                            </Button>
+                        </Link>
+                    </>
+                )}
             </div>
         </div>
     );

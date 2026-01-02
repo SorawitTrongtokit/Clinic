@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/Input';
 import { Trash2, Plus, Pill } from 'lucide-react';
 
 interface MedicationFormProps {
-    visitId: string;
-    onNext: () => void;
+    initialData?: any;
+    onNext: (data: any) => void;
     onBack: () => void;
 }
 
@@ -28,10 +28,9 @@ interface PrescriptionItem {
     unit: string;
 }
 
-export default function MedicationForm({ visitId, onNext, onBack }: MedicationFormProps) {
+export default function MedicationForm({ initialData, onNext, onBack }: MedicationFormProps) {
     const [medicines, setMedicines] = useState<Medicine[]>([]);
-    const [basket, setBasket] = useState<PrescriptionItem[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [basket, setBasket] = useState<PrescriptionItem[]>(initialData?.basket || []);
 
     // Selection state
     const [selectedMedId, setSelectedMedId] = useState('');
@@ -72,56 +71,11 @@ export default function MedicationForm({ visitId, onNext, onBack }: MedicationFo
 
     const totalCost = basket.reduce((sum, item) => sum + (item.qty * item.price), 0);
 
-    const handleSubmit = async () => {
-        setLoading(true);
-        try {
-            // 1. Insert prescriptions
-            const prescriptionPayload = basket.map(item => ({
-                visit_id: visitId,
-                medicine_id: item.medicine_id,
-                qty: item.qty,
-                price: item.price
-            }));
-
-            if (prescriptionPayload.length > 0) {
-                const { error: presError } = await supabase
-                    .from('prescriptions')
-                    .insert(prescriptionPayload);
-                if (presError) throw presError;
-
-                // 2. Decrement stock (Naive approach: Loop. Ideally use RPC or batch)
-                // For MVP loop is fine given low concurrency assumptions for a small clinic.
-                for (const item of basket) {
-                    // Fetch current first to check? Or just decrement.
-                    // decrement field in SQL: stock_qty = stock_qty - qty
-                    // Supabase doesn't have direct increment/decrement in JS client update simply.
-                    // Call RPC is best. But I haven't defined RPC.
-                    // I will read and update.
-                    const med = medicines.find(m => m.id === item.medicine_id);
-                    if (med) {
-                        await supabase
-                            .from('medicines')
-                            .update({ stock_qty: med.stock_qty - item.qty })
-                            .eq('id', item.medicine_id);
-                    }
-                }
-            }
-
-            // 3. Update Visit Total Cost
-            const { error: visitError } = await supabase
-                .from('visits')
-                .update({ total_cost: totalCost })
-                .eq('id', visitId);
-
-            if (visitError) throw visitError;
-
-            onNext();
-        } catch (err) {
-            console.error(err);
-            alert('บันทึกการสั่งยาไม่สำเร็จ');
-        } finally {
-            setLoading(false);
-        }
+    const handleSubmit = () => {
+        onNext({
+            basket: basket,
+            total_cost: totalCost
+        });
     };
 
     return (
@@ -132,6 +86,7 @@ export default function MedicationForm({ visitId, onNext, onBack }: MedicationFo
                 <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">เลือกยา</label>
                     <select
+                        aria-label="เลือกรายการยา"
                         className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={selectedMedId}
                         onChange={(e) => setSelectedMedId(e.target.value)}
@@ -183,7 +138,11 @@ export default function MedicationForm({ visitId, onNext, onBack }: MedicationFo
                                 <td className="px-4 py-3 text-right">{item.qty} {item.unit}</td>
                                 <td className="px-4 py-3 text-right font-bold text-slate-800">{(item.qty * item.price).toLocaleString()}</td>
                                 <td className="px-4 py-3 text-center">
-                                    <button onClick={() => handleRemove(idx)} className="text-red-500 hover:text-red-700 p-1">
+                                    <button
+                                        onClick={() => handleRemove(idx)}
+                                        className="text-red-500 hover:text-red-700 p-1"
+                                        aria-label="ลบรายการ"
+                                    >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
                                 </td>
@@ -202,7 +161,7 @@ export default function MedicationForm({ visitId, onNext, onBack }: MedicationFo
 
             <div className="flex justify-between pt-6 border-t border-slate-100">
                 <Button type="button" variant="outline" onClick={onBack}>ย้อนกลับ</Button>
-                <Button type="button" variant="primary" onClick={handleSubmit} disabled={loading}>
+                <Button type="button" variant="primary" onClick={handleSubmit}>
                     <Pill className="mr-2 h-4 w-4" />
                     ยืนยันการจ่ายยา
                 </Button>

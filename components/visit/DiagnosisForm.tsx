@@ -8,21 +8,20 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Search } from 'lucide-react';
 
 interface DiagnosisFormProps {
-    visitId: string;
-    onNext: () => void;
+    initialData?: any;
+    onNext: (data: any) => void;
     onBack: () => void;
 }
 
-export default function DiagnosisForm({ visitId, onNext, onBack }: DiagnosisFormProps) {
+export default function DiagnosisForm({ initialData, onNext, onBack }: DiagnosisFormProps) {
     const [formData, setFormData] = useState({
-        cc: '',
-        pe: '',
-        diagnosis: '',
-        icd10_code: ''
+        cc: initialData?.cc || '',
+        pe: initialData?.pe || '',
+        diagnosis: initialData?.diagnosis || '',
+        icd10_code: initialData?.icd10_code || ''
     });
-    const [icd10Query, setIcd10Query] = useState('');
+    const [icd10Query, setIcd10Query] = useState(initialData?.icd10_code || '');
     const [icd10Results, setIcd10Results] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
 
     // Debounce search
     useEffect(() => {
@@ -41,30 +40,17 @@ export default function DiagnosisForm({ visitId, onNext, onBack }: DiagnosisForm
         return () => clearTimeout(timer);
     }, [icd10Query]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-        try {
-            const { error } = await supabase
-                .from('visits')
-                .update(formData)
-                .eq('id', visitId);
-            if (error) throw error;
-            onNext();
-        } catch (err) {
-            console.error(err);
-            alert('Error saving diagnosis');
-        } finally {
-            setLoading(false);
-        }
+        onNext(formData);
     };
 
     const favorites = [
-        { code: 'J00', name: 'Acute nasopharyngitis (ไข้หวัด)', desc: 'ไข้หวัด' },
-        { code: 'M79.1', name: 'Myalgia (ปวดกล้ามเนื้อ)', desc: 'ปวดกล้ามเนื้อ' },
-        { code: 'K29.7', name: 'Gastritis (โรคกระเพาะ)', desc: 'โรคกระเพาะอาหาร' },
-        { code: 'A09', name: 'Gastroenteritis (ลำไส้อักเสบ)', desc: 'ท้องร่วง/ลำไส้อักเสบ' },
-        { code: 'T14.1', name: 'Open wound (แผลเปิด)', desc: 'ทำแผล/ล้างแผล' },
+        { code: 'J00', name: 'Acute nasopharyngitis (ไข้หวัด)', desc: 'ไข้หวัด (Acute nasopharyngitis)' },
+        { code: 'M791', name: 'Myalgia (ปวดกล้ามเนื้อ)', desc: 'ปวดกล้ามเนื้อ (Myalgia)' },
+        { code: 'K297', name: 'Gastritis (โรคกระเพาะ)', desc: 'โรคกระเพาะอาหาร (Gastritis, unspecified)' },
+        { code: 'A09', name: 'Gastroenteritis (ลำไส้อักเสบ)', desc: 'ท้องร่วง/ลำไส้อักเสบ (Gastroenteritis)' },
+        { code: 'T141', name: 'Open wound (แผลเปิด)', desc: 'แผลเปิด (Open wound of unspecified body region)' },
     ];
 
     const applyDiagnosis = (code: string, desc: string) => {
@@ -155,7 +141,7 @@ export default function DiagnosisForm({ visitId, onNext, onBack }: DiagnosisForm
 
                 <div className="flex justify-between pt-6 border-t border-slate-100">
                     <Button type="button" variant="outline" onClick={onBack}>ย้อนกลับ</Button>
-                    <Button type="submit" variant="primary" disabled={loading}>ถัดไป: สั่งยา</Button>
+                    <Button type="submit" variant="primary">ถัดไป: สั่งยา</Button>
                 </div>
             </form>
         </div>
