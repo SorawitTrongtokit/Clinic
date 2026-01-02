@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Save, MapPin } from 'lucide-react';
 
+import { Patient, Address } from '@/types';
+
 interface RegistrationFormProps {
     initialIdCard?: string;
-    onSuccess: (patient: any) => void;
-    initialData?: any; // New prop for editing
+    onSuccess: (patient: Patient) => void;
+    initialData?: Patient;
     onCancel?: () => void;
 }
 
@@ -18,7 +20,7 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
     const [loading, setLoading] = useState(false);
 
     // Address parts state
-    const [address, setAddress] = useState({
+    const [address, setAddress] = useState<Address>({
         houseNo: '',
         moo: '',
         tambon: 'มะตูม',
@@ -51,34 +53,26 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                 birthdate: initialData.birthdate,
                 phone: initialData.phone,
                 treatment_right: initialData.treatment_right,
-                drug_allergy: initialData.drug_allergy,
-                underlying_disease: initialData.underlying_disease,
+                drug_allergy: initialData.drug_allergy || '',
+                underlying_disease: initialData.underlying_disease || '',
                 gender: initialData.gender || 'female'
             });
 
-            // Load Address
-            if (initialData.address) {
-                if (typeof initialData.address === 'object') {
-                    // Correctly handle structured object first
-                    // Use ?? to allow empty string "" to take precedence over fallback
-                    setAddress({
-                        houseNo: initialData.address.houseNo ?? initialData.address.full_address ?? '',
-                        moo: initialData.address.moo ?? '',
-                        tambon: initialData.address.tambon || 'มะตูม',
-                        amphoe: initialData.address.amphoe || 'พรหมพิราม',
-                        province: initialData.address.province || 'พิษณุโลก',
-                        zip: initialData.address.zip ?? ''
-                    });
-                } else if (typeof initialData.address === 'string') {
-                    setAddress(prev => ({
-                        ...prev,
-                        houseNo: initialData.address,
-                        tambon: 'มะตูม',
-                        amphoe: 'พรหมพิราม',
-                        province: 'พิษณุโลก'
-                    }));
-                }
+            // Load Address - Logic simplified to prefer object
+            // Use type assertion or check if it matches Address interface if strictness required
+            const addr = initialData.address;
+            if (addr && typeof addr === 'object') {
+                setAddress({
+                    houseNo: addr.houseNo ?? addr.full_address ?? '', // Fallback to full_address if specific field missing
+                    moo: addr.moo ?? '',
+                    tambon: addr.tambon || 'มะตูม',
+                    amphoe: addr.amphoe || 'พรหมพิราม',
+                    province: addr.province || 'พิษณุโลก',
+                    zip: addr.zip ?? ''
+                });
             }
+            // Removed legacy string parsing to encourage data standardization
+            // If data is string, user will have to re-enter or we could add a one-time migration script later
         }
     }, [initialData]);
 
@@ -87,27 +81,31 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
         ? new Date().getFullYear() - new Date(formData.birthdate).getFullYear()
         : 0;
 
+    const validateIdCard = (id: string) => {
+        if (id.length !== 13) return false;
+        if (!/^\d+$/.test(id)) return false;
+        return true;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validation
+        if (!validateIdCard(formData.id_card)) {
+            alert('เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก');
+            return;
+        }
+
         setLoading(true);
 
         try {
             let resultData;
 
-            // Construct full address string for display search if needed, but saving object is better
-            const full_addr_display = `บ้านเลขที่ ${address.houseNo} หมู่ ${address.moo} ต.${address.tambon} อ.${address.amphoe} จ.${address.province}`;
-
             const payload = {
                 ...formData,
-                // Save structured and ALSO full text for easy display if backend supports text, 
-                // but our schema is JSONB. Let's save the structure primarily.
-                // To support legacy view that expects 'full_address' key in some places?
-                // The view code uses: typeof address === 'object' ? address.full_address : address
-                // So we MUST include 'full_address' key in our JSON object for backward compatibility with display logic!
-                address: {
-                    ...address,
-                    full_address: full_addr_display
-                },
+                // Simplify: Just save the object structure. 
+                // Display logic should handle concatenation at view time.
+                address: address as any // casting to any to satisfy potential JSONB type mismatch in supabase client definition if generic
             };
 
             if (initialData) {
@@ -121,7 +119,7 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                 if (error) throw error;
                 resultData = data;
             } else {
-                // CREATE - HN is auto-generated by DB Trigger (set_hn_trigger)
+                // CREATE
                 const { data, error } = await supabase
                     .from('patients')
                     .insert([payload])
@@ -132,7 +130,7 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
             }
 
             if (resultData) {
-                onSuccess(resultData);
+                onSuccess(resultData as Patient);
             }
         } catch (error) {
             console.error('Registration/Update error:', error);

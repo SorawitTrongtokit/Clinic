@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
+import { formatAddress } from '@/lib/utils';
 import RegistrationForm from '@/components/patients/RegistrationForm';
 import { User, FileText, Printer, Clock, ArrowLeft, AlertCircle, Phone, MapPin, Edit } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -154,7 +155,7 @@ export default function PatientRecordPage() {
                                         <MapPin className="h-3 w-3" /> ที่อยู่
                                     </p>
                                     <p className="text-slate-700 text-sm leading-relaxed">
-                                        {typeof patient.address === 'object' ? patient.address.full_address : patient.address}
+                                        {formatAddress(patient.address)}
                                     </p>
                                 </div>
                                 <div>

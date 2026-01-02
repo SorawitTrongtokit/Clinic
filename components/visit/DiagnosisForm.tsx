@@ -46,11 +46,11 @@ export default function DiagnosisForm({ initialData, onNext, onBack }: Diagnosis
     };
 
     const favorites = [
-        { code: 'J00', name: 'Acute nasopharyngitis (ไข้หวัด)', desc: 'ไข้หวัด (Acute nasopharyngitis)' },
-        { code: 'M791', name: 'Myalgia (ปวดกล้ามเนื้อ)', desc: 'ปวดกล้ามเนื้อ (Myalgia)' },
-        { code: 'K297', name: 'Gastritis (โรคกระเพาะ)', desc: 'โรคกระเพาะอาหาร (Gastritis, unspecified)' },
+        { code: 'J00', name: 'Acute nasopharyngitis (ไข้หวัด)', desc: 'Acute nasopharyngitis [common cold]' },
+        { code: 'M791', name: 'Myalgia (ปวดกล้ามเนื้อ)', desc: 'Myalgia' },
+        { code: 'K29', name: 'Gastritis (โรคกระเพาะ)', desc: 'โรคกระเพาะอาหาร (Gastritis and duodenitis)' },
         { code: 'A09', name: 'Gastroenteritis (ลำไส้อักเสบ)', desc: 'ท้องร่วง/ลำไส้อักเสบ (Gastroenteritis)' },
-        { code: 'T141', name: 'Open wound (แผลเปิด)', desc: 'แผลเปิด (Open wound of unspecified body region)' },
+        { code: 'T141', name: 'Open wound (แผลเปิด)', desc: 'Open wound of unspecified body region' },
     ];
 
     const applyDiagnosis = (code: string, desc: string) => {
@@ -85,7 +85,7 @@ export default function DiagnosisForm({ initialData, onNext, onBack }: Diagnosis
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-slate-700 mb-2">โรคที่พบบ่อย (เลือกด่วน)</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">โรคที่พบบ่อย (เลือกด่วน) ***กด Confirm เลือก ICD-10 ข้างล่างด้วย</label>
                         <div className="flex flex-wrap gap-2">
                             {favorites.map(fav => (
                                 <button

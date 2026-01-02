@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { formatAddress } from '@/lib/utils';
 
 export default function PrintVisitPage() {
     const { id } = useParams();
@@ -62,7 +63,7 @@ export default function PrintVisitPage() {
                     <div><span className="font-bold">HN:</span> {p.hn}</div>
                     <div><span className="font-bold">อายุ:</span> {new Date().getFullYear() - new Date(p.birthdate).getFullYear()} ปี</div>
                     <div><span className="font-bold">สิทธิ:</span> {p.treatment_right}</div>
-                    <div><span className="font-bold">ที่อยู่:</span> {typeof p.address === 'object' ? p.address.full_address : p.address}</div>
+                    <div><span className="font-bold">ที่อยู่:</span> {formatAddress(p.address)}</div>
                     <div className="text-red-600"><span className="font-bold text-slate-900">แพ้ยา:</span> {p.drug_allergy || '-'}</div>
                 </div>
 

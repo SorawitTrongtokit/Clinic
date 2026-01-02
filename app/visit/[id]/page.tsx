@@ -101,6 +101,21 @@ export default function VisitPage() {
         try {
             console.log('Submitting Visit Data (RPC):', formData);
 
+            // Validation: Check if ICD-10 code exists if provided
+            if (formData.icd10_code) {
+                const { data: codeExists, error: codeError } = await supabase
+                    .from('icd10_codes')
+                    .select('code')
+                    .eq('code', formData.icd10_code)
+                    .single();
+
+                if (codeError || !codeExists) {
+                    alert(`รหัส ICD-10 "${formData.icd10_code}" ไม่ถูกต้อง หรือไม่มีในระบบ กรุณาเลือกใหม่`);
+                    setIsSaving(false);
+                    return;
+                }
+            }
+
             // 1. Prepare Visit Data (JSON for RPC)
             const visitData = {
                 temp: formData.temp ? parseFloat(formData.temp) : null,
