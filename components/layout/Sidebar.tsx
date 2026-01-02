@@ -2,10 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { Stethoscope, Users, Pill, FileText, ClipboardList, Home } from 'lucide-react';
-
-// Simple utility if cn doesn't exist yet, but usually shadcn setups have it.
-// If it errors, I'll fix it. The codebase seems to use standard className strings mostly.
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -28,8 +26,13 @@ export default function Sidebar() {
             <div className="h-full px-4 py-6 overflow-y-auto flex flex-col">
                 {/* Logo Area */}
                 <div className="flex items-center gap-3 mb-10 px-2">
-                    <div className="bg-gradient-to-tr from-blue-600 to-teal-400 text-white p-2 rounded-xl shadow-lg shadow-blue-200">
-                        <Stethoscope className="h-6 w-6" />
+                    <div className="relative h-12 w-12 shrink-0">
+                        <Image
+                            src="/logo.png"
+                            alt="Clinic Logo"
+                            fill
+                            className="object-contain"
+                        />
                     </div>
                     <div>
                         <h1 className="text-lg font-bold bg-gradient-to-r from-blue-700 to-teal-600 bg-clip-text text-transparent leading-none">
