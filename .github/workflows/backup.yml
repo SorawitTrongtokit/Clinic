@@ -1,0 +1,40 @@
+name: Database Backup
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight UTC (7 AM BKK)
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Backup Database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          pg_dump "$SUPABASE_DB_URL" --format=custom --file=backup_$(date +%Y-%m-%d).dump
+
+      - name: Setup Rclone
+        uses: animin/setup-rclone@v1
+        with:
+          rclone_config: ${{ secrets.RCLONE_CONF }}
+
+      - name: Upload to Google Drive
+        run: |
+          # Create directory if not exists (handling remote: prefix is critical, assuming config name is 'remote')
+          # We assume the config provided in secret is named 'gdrive' or similar. 
+          # To be safe, we'll try to use the first remote found or hardcode 'gdrive'.
+          # Instructions to user will specify naming the remote 'gdrive'.
+          
+          rclone copy backup_*.dump gdrive:/ClinicBackups/
+          
+          # Optional: Delete backups older than 30 days
+          rclone delete gdrive:/ClinicBackups/ --min-age 30d
