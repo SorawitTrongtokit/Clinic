@@ -140,7 +140,7 @@ export default function RecordsPage() {
                                                     {age} ปี
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <Link href={`/patients/${patient.id}`}>
+                                                    <Link href={`/records/${patient.id}`}>
                                                         <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50 group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-slate-100">
                                                             ดูประวัติ <ArrowRight className="ml-1 h-4 w-4" />
                                                         </Button>

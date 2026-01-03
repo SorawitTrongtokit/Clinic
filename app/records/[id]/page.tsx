@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import PatientDetailView from '@/components/patients/PatientDetailView';
 
-export default function PatientRecordPage() {
+export default function RecordDetailPage() {
     const { id } = useParams();
 
     if (!id) return <div>Invalid ID</div>;

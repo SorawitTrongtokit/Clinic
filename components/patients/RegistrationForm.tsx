@@ -87,12 +87,25 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
         return true;
     };
 
+    const validatePhone = (phone: string) => {
+        // Allow empty if not required, but if entered, must be 10 digits
+        if (!phone) return true;
+        if (phone.length !== 10) return false;
+        if (!/^\d+$/.test(phone)) return false;
+        return true;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Validation
         if (!validateIdCard(formData.id_card)) {
             alert('เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก');
+            return;
+        }
+
+        if (formData.phone && !validatePhone(formData.phone)) {
+            alert('เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก');
             return;
         }
 
@@ -103,6 +116,9 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
 
             const payload = {
                 ...formData,
+                // Default to "ไม่มี" if empty
+                underlying_disease: formData.underlying_disease?.trim() || 'ไม่มี',
+                drug_allergy: formData.drug_allergy?.trim() || 'ไม่มี',
                 // Simplify: Just save the object structure. 
                 // Display logic should handle concatenation at view time.
                 address: address as any // casting to any to satisfy potential JSONB type mismatch in supabase client definition if generic
@@ -151,8 +167,12 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                     <Input
                         required
                         readOnly={!!initialData} // Read-only if editing
+                        maxLength={13}
                         value={formData.id_card}
-                        onChange={(e) => setFormData({ ...formData, id_card: e.target.value })}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            setFormData({ ...formData, id_card: val })
+                        }}
                         className={initialData ? "bg-slate-100 text-slate-500" : "bg-white"}
                     />
                 </div>
@@ -209,8 +229,12 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                     <label className="block text-sm font-medium text-slate-700 mb-1">เบอร์โทรศัพท์</label>
                     <Input
                         type="tel"
+                        maxLength={10}
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            setFormData({ ...formData, phone: val })
+                        }}
                     />
                 </div>
 
