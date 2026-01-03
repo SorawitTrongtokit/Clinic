@@ -1,12 +1,12 @@
 'use client';
 
-import { Visit } from '@/types';
+import { VisitWithPatient } from '@/types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Activity, TrendingUp, Heart } from 'lucide-react';
 import { useState } from 'react';
 
 interface VitalSignsChartProps {
-    visits: Visit[];
+    visits: VisitWithPatient[];
 }
 
 type ChartType = 'weight' | 'bp' | 'all';

@@ -11,7 +11,7 @@ import VitalSignsChart from '@/components/patients/VitalSignsChart';
 import PatientNotes from '@/components/patients/PatientNotes';
 import { User, FileText, Printer, Clock, ArrowLeft, AlertCircle, Phone, MapPin, Edit, Activity, LayoutList } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Patient, Visit } from '@/types';
+import { Patient, VisitWithPatient } from '@/types';
 
 type TabType = 'overview' | 'timeline' | 'vitals';
 
@@ -20,7 +20,7 @@ export default function PatientRecordPage() {
     const { id } = useParams();
     const router = useRouter();
     const [patient, setPatient] = useState<Patient | null>(null);
-    const [visits, setVisits] = useState<Visit[]>([]);
+    const [visits, setVisits] = useState<VisitWithPatient[]>([]);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<TabType>('overview');

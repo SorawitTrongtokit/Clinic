@@ -1,12 +1,12 @@
 'use client';
 
-import { Visit } from '@/types';
-import { FileText, Pill, Printer, Calendar, Activity } from 'lucide-react';
+import { VisitWithPatient } from '@/types';
+import { FileText, Pill, Printer, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'framer-motion';
 
 interface VisitTimelineProps {
-    visits: Visit[];
+    visits: VisitWithPatient[];
 }
 
 export default function VisitTimeline({ visits }: VisitTimelineProps) {
