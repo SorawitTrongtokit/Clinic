@@ -20,11 +20,32 @@ jobs:
           sudo apt-get install -y rclone
 
       - name: Configure Rclone for Google Drive
+        env:
+          RCLONE_CONF_SECRET: ${{ secrets.RCLONE_CONFIG }}
         run: |
+          # Define a fixed path for config
           mkdir -p ~/.config/rclone
-          echo "${{ secrets.RCLONE_CONFIG }}" | base64 -d > ~/.config/rclone/rclone.conf
-          # Verify config exists (but don't cat it for security in logs unless debugging)
-          ls -l ~/.config/rclone/rclone.conf
+          CONF_PATH="$HOME/.config/rclone/rclone.conf"
+          
+          # Try 1: Attempt Base64 decode with ignore garbage (-i)
+          echo "$RCLONE_CONF_SECRET" | base64 -di > "$CONF_PATH" 2>/dev/null || true
+          
+          # Validate
+          if [ -n "$(rclone listremotes --config="$CONF_PATH")" ]; then
+            echo "✅ Config successfully decoded as Base64"
+          else
+            echo "⚠️ Base64 decode failed or empty. Retrying as Plaintext..."
+            echo "$RCLONE_CONF_SECRET" > "$CONF_PATH"
+            
+            if [ -n "$(rclone listremotes --config="$CONF_PATH")" ]; then
+               echo "✅ Config successfully loaded as Plaintext"
+            else
+               echo "❌ Error: Invalid Rclone config."
+               echo "Debug: File content (hyphenated):"
+               cat "$CONF_PATH" | sed 's/./&-/g' # Obfuscate slightly but check for content
+               exit 1
+            fi
+          fi
 
       - name: Create backup using Supabase API
         env:
@@ -32,6 +53,8 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          # ... (rest of the script matches below)
+
           
           mkdir -p backups
           # List of tables to backup
