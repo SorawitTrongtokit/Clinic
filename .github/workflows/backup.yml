@@ -23,9 +23,15 @@ jobs:
           pg_dump "$SUPABASE_DB_URL" --format=custom --file=backup_$(date +%Y-%m-%d).dump
 
       - name: Setup Rclone
-        uses: animin/setup-rclone@v1
-        with:
-          rclone_config: ${{ secrets.RCLONE_CONF }}
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+        run: |
+          # Install Rclone
+          sudo -v ; curl https://rclone.org/install.sh | sudo bash
+          
+          # Setup Config
+          mkdir -p ~/.config/rclone
+          echo "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
 
       - name: Upload to Google Drive
         run: |
