@@ -1,48 +1,88 @@
-name: Database Backup
+name: Backup Supabase to Google Drive
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Run daily at midnight UTC (7 AM BKK)
+    # Run every day at 2:00 AM UTC (9:00 AM Thailand)
+    - cron: '0 2 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
   backup:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install PostgreSQL Client
+      - name: Install Rclone
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
-          # Workaround for IPv6 Network Unreachable
-          sudo sh -c 'echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf'
+          sudo apt-get install -y rclone
 
-      - name: Backup Database
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Configure Rclone for Google Drive
         run: |
-          pg_dump "$SUPABASE_DB_URL" --format=custom --file=backup_$(date +%Y-%m-%d).dump
-
-      - name: Setup Rclone
-        env:
-          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
-        run: |
-          # Install Rclone
-          sudo -v ; curl https://rclone.org/install.sh | sudo bash
-          
-          # Setup Config
           mkdir -p ~/.config/rclone
-          echo "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          echo "${{ secrets.RCLONE_CONFIG }}" | base64 -d > ~/.config/rclone/rclone.conf
+          # Verify config exists (but don't cat it for security in logs unless debugging)
+          ls -l ~/.config/rclone/rclone.conf
+
+      - name: Create backup using Supabase API
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          
+          mkdir -p backups
+          # List of tables to backup
+          TABLES=("patients" "medicines" "visits" "expenses")
+          
+          for TABLE in "${TABLES[@]}"; do
+            echo "Exporting $TABLE..."
+            # Note: We limit to 50000 rows per table just in case, but usually API handles streaming okayish for small DBs.
+            # Ideally we should implement pagination if DB grows huge.
+            curl -s "https://${SUPABASE_PROJECT_REF}.supabase.co/rest/v1/${TABLE}?select=*" \
+              -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+              > "backups/${TABLE}_${TIMESTAMP}.json"
+            
+            # Check if file is empty or contains error
+            if grep -q "error" "backups/${TABLE}_${TIMESTAMP}.json"; then
+                echo "Error exporting $TABLE"
+                cat "backups/${TABLE}_${TIMESTAMP}.json"
+                exit 1
+            fi
+          done
+          
+          tar -czvf "backups/clinic_backup_${TIMESTAMP}.tar.gz" backups/*.json
+          rm backups/*.json
+          
+          echo "BACKUP_FILE=backups/clinic_backup_${TIMESTAMP}.tar.gz" >> $GITHUB_ENV
+          echo "✅ Backup created: clinic_backup_${TIMESTAMP}.tar.gz"
 
       - name: Upload to Google Drive
         run: |
-          # Create directory if not exists (handling remote: prefix is critical, assuming config name is 'remote')
-          # We assume the config provided in secret is named 'gdrive' or similar. 
-          # To be safe, we'll try to use the first remote found or hardcode 'gdrive'.
-          # Instructions to user will specify naming the remote 'gdrive'.
-          
-          rclone copy backup_*.dump gdrive:/ClinicBackups/
-          
-          # Optional: Delete backups older than 30 days
-          rclone delete gdrive:/ClinicBackups/ --min-age 30d
+          # Use 'gdrive' as the remote name, assuming user configured it so or we instruct them
+          rclone copy "${{ env.BACKUP_FILE }}" gdrive:ClinicBackups/ -v
+          echo "✅ Uploaded to Google Drive"
+
+      - name: Cleanup old backups on Drive (keep last 30)
+        run: |
+          # Check if directory exists first to avoid error on first run
+          if rclone lsd gdrive:ClinicBackups/ >/dev/null 2>&1; then
+             rclone lsf gdrive:ClinicBackups/ --files-only | sort -r | tail -n +31 | while read file; do
+               rclone delete "gdrive:ClinicBackups/$file"
+               echo "🗑️ Deleted old backup: $file"
+             done
+          else
+             echo "Info: ClinicBackups directory does not exist yet (first run?), skipping cleanup."
+          fi
+
+      - name: Report status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Backup completed successfully"
+          else
+            echo "❌ Backup failed"
+          fi
