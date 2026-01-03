@@ -3,10 +3,18 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { UserSearch, Pill, Activity, Users, CreditCard, TrendingUp, Calendar, ArrowRight, Clock, ShieldCheck, FileText } from 'lucide-react';
+import { UserSearch, Pill, Activity, Users, CreditCard, TrendingUp, Calendar, ArrowRight, Clock, ShieldCheck, FileText, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { VisitWithPatient } from '@/types';
+import { VisitWithPatient, Medicine } from '@/types';
 import { useToast } from '@/components/ui/Toast';
+import IncomeChart from '@/components/dashboard/IncomeChart';
+import LowStockAlert from '@/components/dashboard/LowStockAlert';
+
+interface DailyIncome {
+  date: string;
+  dayName: string;
+  income: number;
+}
 
 export default function Home() {
   const { showToast } = useToast();
@@ -17,11 +25,15 @@ export default function Home() {
     monthlyIncome: 0
   });
   const [recentVisits, setRecentVisits] = useState<VisitWithPatient[]>([]);
+  const [weeklyIncome, setWeeklyIncome] = useState<DailyIncome[]>([]);
+  const [lowStockMedicines, setLowStockMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStats();
+    fetchWeeklyIncome();
+    fetchLowStockMedicines();
   }, []);
 
   const fetchStats = async () => {
@@ -84,6 +96,55 @@ export default function Home() {
       console.error('Error fetching dashboard stats:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWeeklyIncome = async () => {
+    try {
+      const days: DailyIncome[] = [];
+      const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const { data } = await supabase
+          .from('visits')
+          .select('total_cost')
+          .gte('created_at', startOfDay.toISOString())
+          .lte('created_at', endOfDay.toISOString());
+
+        const income = data?.reduce((sum, v) => sum + (v.total_cost || 0), 0) || 0;
+
+        days.push({
+          date: date.toLocaleDateString('th-TH'),
+          dayName: dayNames[date.getDay()],
+          income
+        });
+      }
+
+      setWeeklyIncome(days);
+    } catch (err) {
+      console.error('Error fetching weekly income:', err);
+    }
+  };
+
+  const fetchLowStockMedicines = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('medicines')
+        .select('*')
+        .lt('stock_qty', 10)
+        .order('stock_qty', { ascending: true });
+
+      if (error) throw error;
+      if (data) setLowStockMedicines(data as Medicine[]);
+    } catch (err) {
+      console.error('Error fetching low stock medicines:', err);
     }
   };
 
@@ -180,6 +241,30 @@ export default function Home() {
               <UserSearch className="h-6 w-6" />
             </div>
           </motion.div>
+        </motion.div>
+
+        {/* Low Stock Alert */}
+        <LowStockAlert medicines={lowStockMedicines} loading={loading} />
+
+        {/* Weekly Income Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 mb-8"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800">รายได้ 7 วันย้อนหลัง</h3>
+                <p className="text-xs text-slate-400">สรุปยอดรายได้แยกตามวัน</p>
+              </div>
+            </div>
+          </div>
+          <IncomeChart data={weeklyIncome} loading={loading} />
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

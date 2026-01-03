@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 import Sidebar from "@/components/layout/Sidebar";
 import AccessModal from "@/components/auth/AccessModal";
 import { ToastProvider } from "@/components/ui/Toast";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 
 export default function RootLayout({
   children,
@@ -33,13 +34,15 @@ export default function RootLayout({
       <body
         className={`${kanit.variable} ${sarabun.variable} font-sans antialiased bg-slate-50 text-slate-900`}
       >
-        <ToastProvider>
-          <AccessModal />
-          <Sidebar />
-          <div className="pl-0 md:pl-64 min-h-screen print:pl-0">
-            {children}
-          </div>
-        </ToastProvider>
+        <ErrorBoundary>
+          <ToastProvider>
+            <AccessModal />
+            <Sidebar />
+            <div className="pl-0 md:pl-64 min-h-screen print:pl-0">
+              {children}
+            </div>
+          </ToastProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

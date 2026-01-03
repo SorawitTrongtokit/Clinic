@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Pill, Plus, Trash2, Edit2, X, Save } from 'lucide-react';
+import { Pill, Plus, Trash2, Edit2, X, Save, Search } from 'lucide-react';
 import { Medicine } from '@/types';
 import { useToast } from '@/components/ui/Toast';
 
@@ -14,6 +14,13 @@ export default function StockPage() {
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Filter medicines based on search term
+    const filteredMedicines = medicines.filter(med =>
+        med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (med.instruction || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const [form, setForm] = useState({
         name: '',
@@ -188,6 +195,17 @@ export default function StockPage() {
 
                     {/* Table Section */}
                     <div className="lg:col-span-2">
+                        {/* Search Bar */}
+                        <div className="mb-4 relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="ค้นหายา..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-sm"
+                            />
+                        </div>
                         <div className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-slate-200 overflow-hidden ring-1 ring-slate-100">
                             <table className="w-full text-sm">
                                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -201,9 +219,9 @@ export default function StockPage() {
                                 <tbody className="divide-y divide-slate-100">
                                     {loading ? (
                                         <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">กำลังโหลด...</td></tr>
-                                    ) : medicines.length === 0 ? (
-                                        <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">ไม่พบรายการยา</td></tr>
-                                    ) : medicines.map((med) => (
+                                    ) : filteredMedicines.length === 0 ? (
+                                        <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">{searchTerm ? 'ไม่พบยาที่ค้นหา' : 'ไม่พบรายการยา'}</td></tr>
+                                    ) : filteredMedicines.map((med) => (
                                         <tr key={med.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-slate-800 text-base">{med.name}</div>
