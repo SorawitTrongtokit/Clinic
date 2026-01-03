@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Banknote, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface Expense {
     id: string;
@@ -38,6 +40,21 @@ export default function AccountingPage() {
         category: 'ค่าใช้จ่ายทั่วไป',
         remark: ''
     });
+
+    const container = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const item = {
+        hidden: { opacity: 0, y: 20 },
+        show: { opacity: 1, y: 0 }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -144,9 +161,15 @@ export default function AccountingPage() {
                 </div>
 
                 {/* Stat Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                     {/* Income */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
+                        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group"
+                    >
                         <div className="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-full -translate-y-16 translate-x-16 group-hover:bg-green-100 transition-colors" />
                         <div className="relative">
                             <p className="text-sm font-medium text-slate-500 mb-1">รายรับเดือนนี้</p>
@@ -159,10 +182,16 @@ export default function AccountingPage() {
                                 {incomeData.length} รายการ
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Expense */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
+                        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group"
+                    >
                         <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -translate-y-16 translate-x-16 group-hover:bg-red-100 transition-colors" />
                         <div className="relative">
                             <p className="text-sm font-medium text-slate-500 mb-1">รายจ่ายเดือนนี้</p>
@@ -175,10 +204,16 @@ export default function AccountingPage() {
                                 {expenses.length} รายการ
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Net */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
+                        className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group"
+                    >
                         <div className={`absolute top-0 right-0 w-32 h-32 rounded-full -translate-y-16 translate-x-16 transition-colors ${totalIncome - totalExpense >= 0 ? 'bg-blue-50 group-hover:bg-blue-100' : 'bg-orange-50 group-hover:bg-orange-100'}`} />
                         <div className="relative">
                             <p className="text-sm font-medium text-slate-500 mb-1">กำไรสุทธิ</p>
@@ -191,7 +226,7 @@ export default function AccountingPage() {
                                 {((totalIncome - totalExpense) / (totalIncome || 1) * 100).toFixed(1)}% margin
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* Expense List Section */}
@@ -259,13 +294,26 @@ export default function AccountingPage() {
                                     <th className="px-6 py-4 text-center font-medium">ลบ</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <motion.tbody
+                                variants={container}
+                                initial="hidden"
+                                animate="show"
+                                className="divide-y divide-slate-100"
+                            >
                                 {loading ? (
-                                    <tr><td colSpan={5} className="p-8 text-center text-slate-400">Loading...</td></tr>
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <tr key={i}>
+                                            <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                            <td className="px-6 py-4"><Skeleton className="h-4 w-48" /></td>
+                                            <td className="px-6 py-4"><Skeleton className="h-4 w-20 rounded-full" /></td>
+                                            <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-24 ml-auto" /></td>
+                                            <td className="px-6 py-4"><Skeleton className="h-8 w-8 rounded-lg mx-auto" /></td>
+                                        </tr>
+                                    ))
                                 ) : expenses.length === 0 ? (
                                     <tr><td colSpan={5} className="p-8 text-center text-slate-400">ไม่มีรายการค่าใช้จ่ายในเดือนนี้</td></tr>
                                 ) : expenses.map((exp) => (
-                                    <tr key={exp.id} className="hover:bg-slate-50">
+                                    <motion.tr variants={item} key={exp.id} className="hover:bg-slate-50">
                                         <td className="px-6 py-4 text-slate-600">{new Date(exp.date).toLocaleDateString('th-TH')}</td>
                                         <td className="px-6 py-4 font-medium text-slate-800">{exp.title}</td>
                                         <td className="px-6 py-4">
@@ -285,9 +333,9 @@ export default function AccountingPage() {
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
                                         </td>
-                                    </tr>
+                                    </motion.tr>
                                 ))}
-                            </tbody>
+                            </motion.tbody>
                         </table>
                     </div>
                 </div>

@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/Toast';
 import IncomeChart from '@/components/dashboard/IncomeChart';
 import LowStockAlert from '@/components/dashboard/LowStockAlert';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
+import RegistrationModal from '@/components/patients/RegistrationModal';
 
 interface DailyIncome {
   date: string;
@@ -38,6 +39,7 @@ export default function Home() {
   const [recentPatients, setRecentPatients] = useState<RecentPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   // Load recent patients from localStorage
   useEffect(() => {
@@ -214,6 +216,10 @@ export default function Home() {
     show: { opacity: 1, y: 0 }
   };
 
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50/50 font-sans p-6">
       <main className="container mx-auto max-w-7xl">
@@ -240,7 +246,11 @@ export default function Home() {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10"
         >
           {/* Card 1: Visits Today */}
-          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <motion.div
+            variants={item}
+            whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between"
+          >
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">ผู้ป่วยวันนี้</p>
               <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : stats.visitsToday}</h3>
@@ -254,7 +264,11 @@ export default function Home() {
           </motion.div>
 
           {/* Card 2: Income Today */}
-          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <motion.div
+            variants={item}
+            whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between"
+          >
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">รายรับวันนี้</p>
               <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : `฿${stats.incomeToday.toLocaleString()}`}</h3>
@@ -268,7 +282,11 @@ export default function Home() {
           </motion.div>
 
           {/* Card 3: Monthly Income */}
-          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <motion.div
+            variants={item}
+            whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between"
+          >
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">รายรับเดือนนี้</p>
               <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : `฿${stats.monthlyIncome.toLocaleString()}`}</h3>
@@ -282,7 +300,11 @@ export default function Home() {
           </motion.div>
 
           {/* Card 4: Total Patients */}
-          <motion.div variants={item} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <motion.div
+            variants={item}
+            whileHover={{ y: -5, boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between"
+          >
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">ทะเบียนผู้ป่วยรวม</p>
               <h3 className="text-3xl font-bold text-slate-800">{loading ? '-' : stats.totalPatients.toLocaleString()}</h3>
@@ -340,13 +362,33 @@ export default function Home() {
                     <th className="px-4 py-3 text-right rounded-r-lg">ค่ารักษา</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <motion.tbody
+                  className="divide-y divide-slate-100"
+                  variants={{
+                    hidden: { opacity: 0 },
+                    show: {
+                      opacity: 1,
+                      transition: {
+                        staggerChildren: 0.1
+                      }
+                    }
+                  }}
+                  initial="hidden"
+                  animate="show"
+                >
                   {loading ? (
                     <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">กำลังโหลด...</td></tr>
                   ) : recentVisits.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">ไม่มีข้อมูลการตรวจล่าสุด</td></tr>
                   ) : recentVisits.map((visit) => (
-                    <tr key={visit.id} className="hover:bg-slate-50 transition-colors">
+                    <motion.tr
+                      key={visit.id}
+                      className="hover:bg-slate-50 transition-colors"
+                      variants={{
+                        hidden: { opacity: 0, x: -20 },
+                        show: { opacity: 1, x: 0 }
+                      }}
+                    >
                       <td className="px-4 py-3 font-medium text-slate-500">
                         {visit.created_at ? new Date(visit.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
@@ -356,9 +398,9 @@ export default function Home() {
                       <td className="px-4 py-3 text-slate-600 truncate max-w-[150px]">{visit.cc || '-'}</td>
                       <td className="px-4 py-3 text-slate-600 truncate max-w-[150px]">{visit.icd10_code ? <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{visit.icd10_code}</span> : '-'}</td>
                       <td className="px-4 py-3 text-right font-bold text-slate-700">฿{visit.total_cost?.toLocaleString()}</td>
-                    </tr>
+                    </motion.tr>
                   ))}
-                </tbody>
+                </motion.tbody>
               </table>
             </div>
           </div>
@@ -368,11 +410,12 @@ export default function Home() {
             <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-lg shadow-blue-200">
               <h3 className="text-lg font-bold mb-2">ลงทะเบียนใหม่</h3>
               <p className="text-blue-100 text-sm mb-6">เริ่มต้นการตรวจรักษา ค้นหาผู้ป่วย หรือลงทะเบียนใหม่</p>
-              <Link href="/patients">
-                <button className="w-full bg-white text-blue-600 font-bold py-3 rounded-xl shadow hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
-                  <UserSearch className="h-5 w-5" /> ไปที่จุดต้อนรับ
-                </button>
-              </Link>
+              <button
+                onClick={() => setShowRegisterModal(true)}
+                className="w-full bg-white text-blue-600 font-bold py-3 rounded-xl shadow hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <UserSearch className="h-5 w-5" /> ไปที่จุดต้อนรับ / ลงทะเบียน
+              </button>
             </div>
 
             <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
@@ -427,7 +470,23 @@ export default function Home() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+
+        <RegistrationModal
+          isOpen={showRegisterModal}
+          onClose={() => setShowRegisterModal(false)}
+          onSuccess={(newPatient) => {
+            showToast(`ลงทะเบียน ${newPatient.first_name} ${newPatient.last_name} สำเร็จ`, 'success');
+            // Optionally update recent patients or redirect
+            if (typeof window !== 'undefined') {
+              const saved = localStorage.getItem('clinic_recent_patients');
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                setRecentPatients(parsed);
+              }
+            }
+          }}
+        />
+      </main >
+    </div >
   );
 }

@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/Input';
 import { Pill, Plus, Trash2, Edit2, X, Save, Search } from 'lucide-react';
 import { Medicine } from '@/types';
 import { useToast } from '@/components/ui/Toast';
+import Portal from '@/components/ui/Portal';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function StockPage() {
     const { showToast } = useToast();
@@ -249,154 +251,182 @@ export default function StockPage() {
             </main>
 
             {/* Form Modal (Add/Edit) */}
-            {showFormModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <h3 className="text-xl font-bold text-slate-800">{isEditing ? 'แก้ไขรายการยา' : 'เพิ่มยาใหม่'}</h3>
-                                <p className="text-sm text-slate-500">กรอกข้อมูลยาและเวชภัณฑ์</p>
-                            </div>
-                            <button
-                                onClick={resetForm}
-                                className="text-slate-400 hover:text-slate-600 p-1 bg-slate-100 rounded-full"
-                                aria-label="ปิด"
+            <Portal>
+                <AnimatePresence>
+                    {showFormModal && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.95, opacity: 0 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
                             >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">ชื่อยา</label>
-                                <Input
-                                    required
-                                    value={form.name}
-                                    onChange={e => setForm({ ...form, name: e.target.value })}
-                                    placeholder="เช่น Paracetamol 500mg"
-                                    className="bg-white"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">ราคา/หน่วย</label>
-                                    <Input
-                                        required type="number" step="0.01"
-                                        value={form.price_per_unit}
-                                        onChange={e => setForm({ ...form, price_per_unit: e.target.value })}
-                                        placeholder="0.00"
-                                        className="bg-white"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">หน่วยนับ</label>
-                                    <Input
-                                        required
-                                        value={form.unit}
-                                        onChange={e => setForm({ ...form, unit: e.target.value })}
-                                        placeholder="เม็ด/ขวด"
-                                        className="bg-white"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">จำนวนคงเหลือ</label>
-                                <Input
-                                    required type="number"
-                                    value={form.stock_qty}
-                                    onChange={e => setForm({ ...form, stock_qty: e.target.value })}
-                                    placeholder="0"
-                                    className="bg-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">วิธีใช้ (Instruction)</label>
-                                <Input
-                                    value={form.instruction}
-                                    onChange={e => setForm({ ...form, instruction: e.target.value })}
-                                    placeholder="เช่น ทานครั้งละ 1 เม็ด หลังอาหารเช้า"
-                                    className="bg-white"
-                                />
-                            </div>
-                            <div className="flex gap-3 pt-4">
-                                <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>
-                                    ยกเลิก
-                                </Button>
-                                <Button type="submit" variant={isEditing ? 'secondary' : 'primary'} className="flex-1 shadow-lg">
-                                    {isEditing ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-                                    {isEditing ? 'บันทึกการแก้ไข' : 'เพิ่มรายการยา'}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Quick Add Modal */}
-            {
-                quickAddMed && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="text-lg font-bold text-slate-800">เพิ่มสต็อกด่วน</h3>
-                                    <p className="text-sm text-slate-500">{quickAddMed.name}</p>
-                                </div>
-                                <button
-                                    onClick={() => setQuickAddMed(null)}
-                                    className="text-slate-400 hover:text-slate-600 p-1 bg-slate-100 rounded-full"
-                                    aria-label="ปิดหน้าต่าง"
-                                    title="ปิด"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-
-                            <form onSubmit={submitQuickAdd}>
-                                <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div className="flex justify-between text-sm mb-2">
-                                        <span className="text-slate-600">คงเหลือปัจจุบัน:</span>
-                                        <span className="font-bold text-slate-900">{quickAddMed.stock_qty} {quickAddMed.unit}</span>
+                                <div className="flex justify-between items-start mb-6">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800">{isEditing ? 'แก้ไขรายการยา' : 'เพิ่มยาใหม่'}</h3>
+                                        <p className="text-sm text-slate-500">กรอกข้อมูลยาและเวชภัณฑ์</p>
                                     </div>
-                                    <div className="relative">
+                                    <button
+                                        onClick={resetForm}
+                                        className="text-slate-400 hover:text-slate-600 p-1 bg-slate-100 rounded-full"
+                                        aria-label="ปิด"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">ชื่อยา</label>
                                         <Input
-                                            autoFocus
-                                            type="number"
-                                            min="1"
-                                            placeholder="ระบุจำนวนที่เติม..."
-                                            value={quickAddQty}
-                                            onChange={(e) => setQuickAddQty(e.target.value)}
-                                            className="bg-white text-center text-lg font-bold h-12"
+                                            required
+                                            value={form.name}
+                                            onChange={e => setForm({ ...form, name: e.target.value })}
+                                            placeholder="เช่น Paracetamol 500mg"
+                                            className="bg-white"
                                         />
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">
-                                            {quickAddMed.unit}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">ราคา/หน่วย</label>
+                                            <Input
+                                                required type="number" step="0.01"
+                                                value={form.price_per_unit}
+                                                onChange={e => setForm({ ...form, price_per_unit: e.target.value })}
+                                                placeholder="0.00"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">หน่วยนับ</label>
+                                            <Input
+                                                required
+                                                value={form.unit}
+                                                onChange={e => setForm({ ...form, unit: e.target.value })}
+                                                placeholder="เม็ด/ขวด"
+                                                className="bg-white"
+                                            />
                                         </div>
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">จำนวนคงเหลือ</label>
+                                        <Input
+                                            required type="number"
+                                            value={form.stock_qty}
+                                            onChange={e => setForm({ ...form, stock_qty: e.target.value })}
+                                            placeholder="0"
+                                            className="bg-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">วิธีใช้ (Instruction)</label>
+                                        <Input
+                                            value={form.instruction}
+                                            onChange={e => setForm({ ...form, instruction: e.target.value })}
+                                            placeholder="เช่น ทานครั้งละ 1 เม็ด หลังอาหารเช้า"
+                                            className="bg-white"
+                                        />
+                                    </div>
+                                    <div className="flex gap-3 pt-4">
+                                        <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>
+                                            ยกเลิก
+                                        </Button>
+                                        <Button type="submit" variant={isEditing ? 'secondary' : 'primary'} className="flex-1 shadow-lg">
+                                            {isEditing ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                                            {isEditing ? 'บันทึกการแก้ไข' : 'เพิ่มรายการยา'}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </Portal>
+
+            {/* Quick Add Modal */}
+            <Portal>
+                <AnimatePresence>
+                    {quickAddMed && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                        >
+                            <motion.div
+                                initial={{ scale: 0.95, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.95, opacity: 0 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+                            >
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-800">เพิ่มสต็อกด่วน</h3>
+                                        <p className="text-sm text-slate-500">{quickAddMed.name}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setQuickAddMed(null)}
+                                        className="text-slate-400 hover:text-slate-600 p-1 bg-slate-100 rounded-full"
+                                        aria-label="ปิดหน้าต่าง"
+                                        title="ปิด"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
                                 </div>
 
-                                <div className="flex gap-3">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="flex-1"
-                                        onClick={() => setQuickAddMed(null)}
-                                    >
-                                        ยกเลิก
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        variant="primary"
-                                        className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
-                                        disabled={!quickAddQty || parseInt(quickAddQty) <= 0}
-                                    >
-                                        <Plus className="h-4 w-4 mr-1" /> ยืนยันเพิ่ม
-                                    </Button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )
-            }
+                                <form onSubmit={submitQuickAdd}>
+                                    <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span className="text-slate-600">คงเหลือปัจจุบัน:</span>
+                                            <span className="font-bold text-slate-900">{quickAddMed.stock_qty} {quickAddMed.unit}</span>
+                                        </div>
+                                        <div className="relative">
+                                            <Input
+                                                autoFocus
+                                                type="number"
+                                                min="1"
+                                                placeholder="ระบุจำนวนที่เติม..."
+                                                value={quickAddQty}
+                                                onChange={(e) => setQuickAddQty(e.target.value)}
+                                                className="bg-white text-center text-lg font-bold h-12"
+                                            />
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium">
+                                                {quickAddMed.unit}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() => setQuickAddMed(null)}
+                                        >
+                                            ยกเลิก
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            variant="primary"
+                                            className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
+                                            disabled={!quickAddQty || parseInt(quickAddQty) <= 0}
+                                        >
+                                            <Plus className="h-4 w-4 mr-1" /> ยืนยันเพิ่ม
+                                        </Button>
+                                    </div>
+                                </form>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </Portal>
         </div >
     );
 }

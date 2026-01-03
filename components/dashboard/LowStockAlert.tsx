@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Pill } from 'lucide-react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { Medicine } from '@/types';
 
 interface LowStockAlertProps {
@@ -17,7 +18,12 @@ export default function LowStockAlert({ medicines, loading }: LowStockAlertProps
     if (lowStockMedicines.length === 0) return null;
 
     return (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+        <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6"
+        >
             <div className="flex items-start gap-3">
                 <div className="p-2 bg-amber-100 rounded-lg">
                     <AlertTriangle className="h-5 w-5 text-amber-600" />
@@ -48,6 +54,6 @@ export default function LowStockAlert({ medicines, loading }: LowStockAlertProps
                     </Link>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 }

@@ -35,8 +35,9 @@ const Button = forwardRef<HTMLButtonElement, CombinedProps>(({ className, varian
     return (
         <motion.button
             ref={ref}
-            whileHover={{ scale: 1.02, translateY: -1 }}
-            whileTap={{ scale: 0.95 }}
+            layout
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.96 }}
             className={cn(
                 'inline-flex items-center justify-center font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none',
                 variants[variant],

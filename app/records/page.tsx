@@ -9,12 +9,14 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Patient } from '@/types';
 import { useToast } from '@/components/ui/Toast';
+import RegistrationModal from '@/components/patients/RegistrationModal';
 
 export default function RecordsPage() {
     const { showToast } = useToast();
     const [patients, setPatients] = useState<Patient[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showRegisterModal, setShowRegisterModal] = useState(false);
 
     useEffect(() => {
         fetchPatients();
@@ -76,11 +78,12 @@ export default function RecordsPage() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Link href="/patients">
-                        <Button className="h-12 px-6 bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700">
-                            + ลงทะเบียนใหม่
-                        </Button>
-                    </Link>
+                    <Button
+                        onClick={() => setShowRegisterModal(true)}
+                        className="h-12 px-6 bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
+                    >
+                        + ลงทะเบียนใหม่
+                    </Button>
                 </div>
 
                 {/* Table */}
@@ -151,6 +154,15 @@ export default function RecordsPage() {
                         </table>
                     </div>
                 </motion.div>
+
+                <RegistrationModal
+                    isOpen={showRegisterModal}
+                    onClose={() => setShowRegisterModal(false)}
+                    onSuccess={(newPatient) => {
+                        showToast(`ลงทะเบียน ${newPatient.first_name} ${newPatient.last_name} สำเร็จ`, 'success');
+                        fetchPatients();
+                    }}
+                />
             </main>
         </div>
     );

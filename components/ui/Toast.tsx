@@ -57,11 +57,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     const getStyles = (type: ToastType) => {
         switch (type) {
             case 'success':
-                return 'bg-green-50 border-green-200 text-green-800';
+                return 'bg-white/95 border-l-emerald-500 ring-1 ring-black/5';
             case 'error':
-                return 'bg-red-50 border-red-200 text-red-800';
+                return 'bg-white/95 border-l-rose-500 ring-1 ring-black/5';
             default:
-                return 'bg-blue-50 border-blue-200 text-blue-800';
+                return 'bg-white/95 border-l-blue-500 ring-1 ring-black/5';
         }
     };
 
@@ -72,20 +72,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <AnimatePresence>
                     {toasts.map(toast => (
                         <motion.div
+                            layout
                             key={toast.id}
-                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            initial={{ opacity: 0, y: 50, scale: 0.8 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, x: 100 }}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm min-w-[280px] max-w-[400px] ${getStyles(toast.type)}`}
+                            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border-l-4 shadow-xl backdrop-blur-md min-w-[300px] max-w-[420px] cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform ${getStyles(toast.type)}`}
+                            onClick={() => dismissToast(toast.id)}
                         >
-                            {getIcon(toast.type)}
-                            <p className="flex-1 text-sm font-medium">{toast.message}</p>
+                            <div className="shrink-0">
+                                {getIcon(toast.type)}
+                            </div>
+                            <p className="flex-1 text-sm font-semibold tracking-wide">{toast.message}</p>
                             <button
-                                onClick={() => dismissToast(toast.id)}
-                                className="p-1 hover:bg-black/5 rounded-full transition-colors"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    dismissToast(toast.id);
+                                }}
+                                className="p-1 hover:bg-black/10 rounded-full transition-colors shrink-0"
                                 aria-label="ปิด"
                             >
-                                <X className="h-4 w-4" />
+                                <X className="h-4 w-4 opacity-60" />
                             </button>
                         </motion.div>
                     ))}

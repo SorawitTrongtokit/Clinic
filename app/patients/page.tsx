@@ -7,7 +7,7 @@ import { Search, UserPlus, FileText, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import RegistrationForm from '@/components/patients/RegistrationForm';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Patient } from '@/types';
 import { useToast } from '@/components/ui/Toast';
 
@@ -77,17 +77,16 @@ export default function PatientsPage() {
         const val = e.target.value.replace(/[^0-9]/g, ''); // Allow only numbers
         if (val.length <= 13) {
             setSearchId(val);
-            // If user clears input or it's short, reset everything
+
+            // Critical Fix: Always reset 'patient' and 'searched' state when input changes
+            // This ensures that if a user edits an existing ID, the "Start Visit" card disappears
+            // and they can search again or register a new person.
+            if (patient) setPatient(null);
+            if (searched) setSearched(false);
+
+            // If user clears input, verify search results are cleared
             if (val.length === 0) {
-                setPatient(null);
-                setSearched(false);
                 setSearchResults([]);
-            } else if (val.length === 13) {
-                // If 13 digits - check exact match auto selection could be nice, 
-                // but let's just let the search run. 
-                // We'll set 'searched' to true to show the form if NOT found.
-                // But logic is tricky: wait for search results.
-                // Let's rely on the user clicking or the "Register New" appearing if 0 results
             }
         }
     };
@@ -101,8 +100,19 @@ export default function PatientsPage() {
 
     const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!patient && searchId.length > 0) {
+
+        // Case 1: If we have search results, don't force "Not Found" state.
+        // User should select from the list.
+        if (searchResults.length > 0) {
+            return;
+        }
+
+        // Case 2: Only allow entering "Registration Mode" if ID is exactly 13 digits
+        // This prevents entering "123" and creating a patient with ID "123"
+        if (!patient && searchId.length === 13) {
             setSearched(true);
+        } else if (searchId.length > 0 && searchId.length < 13) {
+            showToast('กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก', 'error');
         }
     };
 
@@ -135,57 +145,74 @@ export default function PatientsPage() {
                     className="bg-white/70 backdrop-blur-lg p-8 rounded-3xl shadow-lg border border-white/50 mb-10 ring-1 ring-slate-100 max-w-4xl mx-auto relative z-20"
                 >
                     <form onSubmit={handleManualSubmit} className="relative">
-                        <div className="w-full relative">
-                            <label htmlFor="id_card" className="block text-sm font-bold text-slate-700 mb-2 ml-1">
-                                เลขบัตรประชาชน (13 หลัก)
-                            </label>
-                            <Input
-                                id="id_card"
-                                ref={searchInputRef}
-                                placeholder="เลขบัตรประชาชน... (กรอกได้เฉพาะตัวเลข)"
-                                value={searchId}
-                                onChange={handleInputChange}
-                                autoFocus
-                                className="text-lg h-14 pl-4 bg-white shadow-inner font-mono tracking-wider"
-                            />
-                            {/* Real-time Spinner */}
-                            {isSearching && (
-                                <div className="absolute right-4 top-[3.2rem] transform -translate-y-1/2">
-                                    <div className="animate-spin h-5 w-5 border-2 border-blue-500 rounded-full border-t-transparent"></div>
-                                </div>
-                            )}
+                        <div className="flex gap-4 items-end">
+                            <div className="w-full relative flex-1">
+                                <label htmlFor="id_card" className="block text-sm font-bold text-slate-700 mb-2 ml-1">
+                                    เลขบัตรประชาชน (13 หลัก)
+                                </label>
+                                <Input
+                                    id="id_card"
+                                    ref={searchInputRef}
+                                    placeholder="เลขบัตรประชาชน... (กรอกได้เฉพาะตัวเลข)"
+                                    value={searchId}
+                                    onChange={handleInputChange}
+                                    autoFocus
+                                    className="text-lg h-14 pl-4 bg-white shadow-inner font-mono tracking-wider"
+                                />
+                                {/* Real-time Spinner */}
+                                {isSearching && (
+                                    <div className="absolute right-4 top-[3.2rem] transform -translate-y-1/2">
+                                        <div className="animate-spin h-5 w-5 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                                    </div>
+                                )}
+                            </div>
+                            <Button
+                                type="submit"
+                                size="lg"
+                                className="h-14 px-8 bg-blue-600 hover:bg-blue-700 text-lg shadow-lg shadow-blue-200"
+                            >
+                                <Search className="mr-2 h-5 w-5" />
+                                ค้นหา
+                            </Button>
                         </div>
 
                         {/* Search Results Dropdown */}
-                        {searchResults.length > 0 && !patient && (
-                            <div className="absolute top-full left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 mt-2 overflow-hidden z-30">
-                                <div className="p-2 bg-slate-50 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                                    ผลการค้นหา ({searchResults.length})
-                                </div>
-                                {searchResults.map((p) => (
-                                    <div
-                                        key={p.id}
-                                        onClick={() => selectPatient(p)}
-                                        className="p-4 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
-                                                {p.first_name[0]}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
-                                                    {p.prefix} {p.first_name} {p.last_name}
-                                                </p>
-                                                <p className="text-xs text-slate-500">HN: {p.hn} | ID: {p.id_card}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-xs font-medium text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-100">
-                                            เลือก
-                                        </div>
+                        <AnimatePresence>
+                            {searchResults.length > 0 && !patient && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10, height: 0 }}
+                                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                    exit={{ opacity: 0, y: -10, height: 0 }}
+                                    className="absolute top-full left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 mt-2 overflow-hidden z-30"
+                                >
+                                    <div className="p-2 bg-slate-50 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                                        ผลการค้นหา ({searchResults.length})
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                    {searchResults.map((p) => (
+                                        <div
+                                            key={p.id}
+                                            onClick={() => selectPatient(p)}
+                                            className="p-4 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
+                                                    {p.first_name[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
+                                                        {p.prefix} {p.first_name} {p.last_name}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500">HN: {p.hn} | ID: {p.id_card}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-xs font-medium text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-100">
+                                                เลือก
+                                            </div>
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </form>
                 </motion.div>
 
