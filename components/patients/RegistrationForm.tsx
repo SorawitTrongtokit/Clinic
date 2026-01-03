@@ -170,10 +170,11 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                         maxLength={13}
                         value={formData.id_card}
                         onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 13);
                             setFormData({ ...formData, id_card: val })
                         }}
                         className={initialData ? "bg-slate-100 text-slate-500" : "bg-white"}
+                        placeholder="เลขบัตรประชาชน (13 หลัก)"
                     />
                 </div>
 
@@ -203,6 +204,7 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                         required
                         value={formData.first_name}
                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        placeholder="ชื่อจริง (ไม่ต้องมีคำนำหน้า)"
                     />
                 </div>
 
@@ -212,6 +214,7 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                         required
                         value={formData.last_name}
                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        placeholder="นามสกุล"
                     />
                 </div>
 
@@ -232,9 +235,10 @@ export default function RegistrationForm({ initialIdCard, onSuccess, initialData
                         maxLength={10}
                         value={formData.phone}
                         onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
                             setFormData({ ...formData, phone: val })
                         }}
+                        placeholder="เบอร์โทรศัพท์ (10 หลัก)"
                     />
                 </div>
 
