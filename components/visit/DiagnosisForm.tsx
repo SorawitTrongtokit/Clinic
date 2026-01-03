@@ -6,22 +6,23 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Search } from 'lucide-react';
+import { DiagnosisData, ICD10Code } from '@/types';
 
 interface DiagnosisFormProps {
-    initialData?: any;
-    onNext: (data: any) => void;
+    initialData?: Partial<DiagnosisData>;
+    onNext: (data: DiagnosisData) => void;
     onBack: () => void;
 }
 
 export default function DiagnosisForm({ initialData, onNext, onBack }: DiagnosisFormProps) {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<DiagnosisData>({
         cc: initialData?.cc || '',
         pe: initialData?.pe || '',
         diagnosis: initialData?.diagnosis || '',
         icd10_code: initialData?.icd10_code || ''
     });
     const [icd10Query, setIcd10Query] = useState(initialData?.icd10_code || '');
-    const [icd10Results, setIcd10Results] = useState<any[]>([]);
+    const [icd10Results, setIcd10Results] = useState<ICD10Code[]>([]);
 
     // Debounce search
     useEffect(() => {
@@ -35,7 +36,7 @@ export default function DiagnosisForm({ initialData, onNext, onBack }: Diagnosis
                 .select('*')
                 .or(`code.ilike.%${icd10Query}%,description_th.ilike.%${icd10Query}%,description_en.ilike.%${icd10Query}%`)
                 .limit(10);
-            if (data) setIcd10Results(data);
+            if (data) setIcd10Results(data as ICD10Code[]);
         }, 500);
         return () => clearTimeout(timer);
     }, [icd10Query]);
@@ -117,7 +118,7 @@ export default function DiagnosisForm({ initialData, onNext, onBack }: Diagnosis
                                             key={res.code}
                                             className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-sm"
                                             onClick={() => {
-                                                applyDiagnosis(res.code, res.description_th || res.description_en);
+                                                applyDiagnosis(res.code, res.description_th || res.description_en || '');
                                                 setIcd10Results([]);
                                             }}
                                         >

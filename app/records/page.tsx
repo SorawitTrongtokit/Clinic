@@ -7,9 +7,12 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { Patient } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 
 export default function RecordsPage() {
-    const [patients, setPatients] = useState<any[]>([]);
+    const { showToast } = useToast();
+    const [patients, setPatients] = useState<Patient[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -24,11 +27,13 @@ export default function RecordsPage() {
                 .from('patients')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(100); // Initial limit
+                .limit(100);
 
             if (error) throw error;
-            setPatients(data || []);
+            setPatients((data as Patient[]) || []);
         } catch (err) {
+            const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+            showToast(message, 'error');
             console.error(err);
         } finally {
             setLoading(false);

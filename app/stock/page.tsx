@@ -5,9 +5,12 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Pill, Plus, Trash2, Edit2, X, Save } from 'lucide-react';
+import { Medicine } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 
 export default function StockPage() {
-    const [medicines, setMedicines] = useState<any[]>([]);
+    const { showToast } = useToast();
+    const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
@@ -22,10 +25,17 @@ export default function StockPage() {
 
     const fetchMedicines = async () => {
         setLoading(true);
-        const { data, error } = await supabase.from('medicines').select('*').order('name');
-        if (data) setMedicines(data);
-        if (error) console.error(error);
-        setLoading(false);
+        try {
+            const { data, error } = await supabase.from('medicines').select('*').order('name');
+            if (error) throw error;
+            if (data) setMedicines(data as Medicine[]);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+            showToast(message, 'error');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -38,12 +48,12 @@ export default function StockPage() {
         setEditId(null);
     };
 
-    const handleEdit = (med: any) => {
+    const handleEdit = (med: Medicine) => {
         setForm({
             name: med.name,
-            price_per_unit: med.price_per_unit,
+            price_per_unit: String(med.price_per_unit),
             unit: med.unit,
-            stock_qty: med.stock_qty,
+            stock_qty: String(med.stock_qty),
             instruction: med.instruction || ''
         });
         setEditId(med.id);
@@ -52,8 +62,15 @@ export default function StockPage() {
 
     const handleDelete = async (id: string) => {
         if (!confirm('ยืนยันการลบยานี้?')) return;
-        const { error } = await supabase.from('medicines').delete().eq('id', id);
-        if (!error) fetchMedicines();
+        try {
+            const { error } = await supabase.from('medicines').delete().eq('id', id);
+            if (error) throw error;
+            showToast('ลบรายการยาเรียบร้อยแล้ว', 'success');
+            fetchMedicines();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบ';
+            showToast(message, 'error');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -66,18 +83,21 @@ export default function StockPage() {
             instruction: form.instruction
         };
 
-        if (editId) {
-            const { error } = await supabase.from('medicines').update(payload).eq('id', editId);
-            if (!error) {
-                fetchMedicines();
-                resetForm();
+        try {
+            if (editId) {
+                const { error } = await supabase.from('medicines').update(payload).eq('id', editId);
+                if (error) throw error;
+                showToast('บันทึกการแก้ไขเรียบร้อยแล้ว', 'success');
+            } else {
+                const { error } = await supabase.from('medicines').insert([payload]);
+                if (error) throw error;
+                showToast('เพิ่มรายการยาเรียบร้อยแล้ว', 'success');
             }
-        } else {
-            const { error } = await supabase.from('medicines').insert([payload]);
-            if (!error) {
-                fetchMedicines();
-                resetForm();
-            }
+            fetchMedicines();
+            resetForm();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึก';
+            showToast(message, 'error');
         }
     };
 

@@ -8,22 +8,25 @@ import { supabase } from '@/lib/supabase';
 import RegistrationForm from '@/components/patients/RegistrationForm';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Patient } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 
 export default function PatientsPage() {
+    const { showToast } = useToast();
     const [searchId, setSearchId] = useState('');
-    const [patient, setPatient] = useState<any>(null); // Use proper type later
+    const [patient, setPatient] = useState<Patient | null>(null);
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
     const [startingVisit, setStartingVisit] = useState(false);
     const router = useRouter();
 
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<Patient[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
     // Debounce search effect
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (searchId.length >= 3) { // Start searching after 3 digits
+            if (searchId.length >= 3) {
                 handleRealtimeSearch(searchId);
             } else {
                 setSearchResults([]);
@@ -36,17 +39,19 @@ export default function PatientsPage() {
     const handleRealtimeSearch = async (term: string) => {
         setIsSearching(true);
         try {
-            // Search by ID Card (starts with) OR First Name (starts with)
             const { data, error } = await supabase
                 .from('patients')
                 .select('*')
-                .or(`id_card.ilike.${term}%,first_name.ilike.${term}%`) // simple text search
+                .or(`id_card.ilike.${term}%,first_name.ilike.${term}%`)
                 .limit(5);
 
+            if (error) throw error;
             if (data) {
-                setSearchResults(data);
+                setSearchResults(data as Patient[]);
             }
         } catch (err) {
+            const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการค้นหา';
+            showToast(message, 'error');
             console.error(err);
         } finally {
             setIsSearching(false);
@@ -81,16 +86,15 @@ export default function PatientsPage() {
         }
     };
 
-    const selectPatient = (p: any) => {
+    const selectPatient = (p: Patient) => {
         setPatient(p);
         setSearchId(p.id_card);
-        setSearchResults([]); // Hide dropdown
+        setSearchResults([]);
         setSearched(true);
     };
 
     const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Force show "Not found" / Register form if nothing selected
         if (!patient && searchId.length > 0) {
             setSearched(true);
         }

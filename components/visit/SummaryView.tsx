@@ -3,21 +3,23 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Printer, Home, FileText, Activity, Stethoscope, Pill } from 'lucide-react';
+import { VisitSummaryData, PrescriptionItem, VisitFormData } from '@/types';
 
 interface SummaryViewProps {
-    data: any; // Contains all joined data
+    data: VisitSummaryData | VisitFormData;
     onSave?: () => void;
     isNew?: boolean;
-    visitId?: string; // Optional if new
+    visitId?: string;
     isSaving?: boolean;
 }
 
 export default function SummaryView({ data, onSave, isNew, visitId, isSaving }: SummaryViewProps) {
     if (!data) return <div>Loading Summary...</div>;
 
-    const { patients, patient, basket, total_cost, examiner, weight, height, bp_sys, bp_dia, temp, pulse, resp_rate, cc, pe, alcohol, smoking, urgency, diagnosis } = data;
-    const pt = patients || patient; // Handle both structure types
-    const items = basket || [];
+    // Handle both VisitFormData and VisitSummaryData structures
+    const pt = ('patients' in data ? data.patients : data.patient) || data.patient;
+    const items = data.basket || [];
+    const { total_cost, weight, height, bp_sys, bp_dia, temp, pulse, resp_rate, cc, pe, alcohol, smoking, urgency, diagnosis } = data;
 
     // Should we show save button?
     const canSave = isNew && onSave;
@@ -90,11 +92,11 @@ export default function SummaryView({ data, onSave, isNew, visitId, isSaving }: 
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {items && items.length > 0 ? (
-                                items.map((p: any, idx: number) => (
+                                items.map((p: PrescriptionItem, idx: number) => (
                                     <tr key={idx}>
-                                        <td className="px-4 py-3 font-medium text-slate-700">{p.name || p.medicines?.name}</td>
-                                        <td className="px-4 py-3 text-center">{p.qty || p.quantity} {p.unit || p.medicines?.unit}</td>
-                                        <td className="px-4 py-3 text-right">฿{(p.price * (p.qty || p.quantity)).toLocaleString()}</td>
+                                        <td className="px-4 py-3 font-medium text-slate-700">{p.name}</td>
+                                        <td className="px-4 py-3 text-center">{p.qty} {p.unit}</td>
+                                        <td className="px-4 py-3 text-right">฿{(p.price * p.qty).toLocaleString()}</td>
                                     </tr>
                                 ))
                             ) : (

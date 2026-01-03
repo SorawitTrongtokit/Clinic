@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
+import { VitalsData } from '@/types';
 
 interface VitalsFormProps {
-    initialData?: any;
-    onNext: (data: any) => void;
+    initialData?: Partial<VitalsData>;
+    onNext: (data: VitalsData) => void;
 }
 
 export default function VitalsForm({ initialData, onNext }: VitalsFormProps) {

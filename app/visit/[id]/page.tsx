@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation'; // Added useRouter to fix potential router issues
+import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import VitalsForm from '@/components/visit/VitalsForm';
 import { Button } from '@/components/ui/Button';
@@ -9,21 +9,24 @@ import { ChevronRight, Check } from 'lucide-react';
 import DiagnosisForm from '@/components/visit/DiagnosisForm';
 import MedicationForm from '@/components/visit/MedicationForm';
 import SummaryView from '@/components/visit/SummaryView';
+import { Patient, PrescriptionItem, VisitFormData } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 
 export default function VisitPage() {
     const { id } = useParams();
     const router = useRouter();
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [step, setStep] = useState(1);
 
     // Consolidated State for New Visit
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<VisitFormData>({
         patient_id: '',
-        patient: null as any, // Patient details
+        patient: null,
         ...initialVitals,
         ...initialDiagnosis,
-        basket: [] as any[], // prescriptions
+        basket: [],
         total_cost: 0,
         examiner: 'น.ส.ภัทรภร พวงอุบล'
     });
@@ -47,10 +50,10 @@ export default function VisitPage() {
     const fetchPatient = async (pid: string) => {
         const { data, error } = await supabase.from('patients').select('*').eq('id', pid).single();
         if (data) {
-            setFormData(prev => ({ ...prev, patient_id: pid, patient: data }));
+            setFormData(prev => ({ ...prev, patient_id: pid, patient: data as Patient }));
             setLoading(false);
         } else {
-            alert('Patient not found');
+            showToast('ไม่พบข้อมูลผู้ป่วย', 'error');
             router.push('/patients');
         }
     };
@@ -69,12 +72,12 @@ export default function VisitPage() {
             setFormData({
                 ...data, // naive spread, might need explicit mapping
                 patient: data.patients,
-                basket: data.prescriptions?.map((p: any) => ({
+                basket: data.prescriptions?.map((p: { medicine_id: string; qty: number; price: number; medicines?: { name: string; unit: string } }) => ({
                     medicine_id: p.medicine_id,
-                    name: p.medicines?.name,
+                    name: p.medicines?.name || '',
                     qty: p.qty,
                     price: p.price,
-                    unit: p.medicines?.unit
+                    unit: p.medicines?.unit || ''
                 })) || []
             });
             setLoading(false);
@@ -86,12 +89,12 @@ export default function VisitPage() {
                 setStep(4);
             }
         } else {
-            alert('Visit not found');
+            showToast('ไม่พบข้อมูลการตรวจ', 'error');
             router.push('/patients');
         }
     };
 
-    const updateFormData = (updates: any) => {
+    const updateFormData = (updates: Partial<VisitFormData>) => {
         setFormData(prev => ({ ...prev, ...updates }));
     };
 

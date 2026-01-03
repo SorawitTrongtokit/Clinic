@@ -5,16 +5,20 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { UserSearch, Pill, Activity, Users, CreditCard, TrendingUp, Calendar, ArrowRight, Clock, ShieldCheck, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { VisitWithPatient } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 
 export default function Home() {
+  const { showToast } = useToast();
   const [stats, setStats] = useState({
     totalPatients: 0,
     visitsToday: 0,
     incomeToday: 0,
     monthlyIncome: 0
   });
-  const [recentVisits, setRecentVisits] = useState<any[]>([]);
+  const [recentVisits, setRecentVisits] = useState<VisitWithPatient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStats();
@@ -22,38 +26,48 @@ export default function Home() {
 
   const fetchStats = async () => {
     try {
+      setError(null);
+
       // 1. Total Patients
-      const { count: patientCount } = await supabase
+      const { count: patientCount, error: patientError } = await supabase
         .from('patients')
         .select('*', { count: 'exact', head: true });
 
+      if (patientError) throw patientError;
+
       // 2. Visits Today & Income
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // Start of today local time
+      today.setHours(0, 0, 0, 0);
 
-      const { data: visits } = await supabase
+      const { data: visits, error: visitsError } = await supabase
         .from('visits')
         .select('total_cost, created_at')
         .gte('created_at', today.toISOString());
 
+      if (visitsError) throw visitsError;
+
       const todayCount = visits?.length || 0;
       const todayIncome = visits?.reduce((sum, v) => sum + (v.total_cost || 0), 0) || 0;
 
-      // 3. Monthly Income (This month)
+      // 3. Monthly Income
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const { data: monthlyVisits } = await supabase
+      const { data: monthlyVisits, error: monthlyError } = await supabase
         .from('visits')
         .select('total_cost')
         .gte('created_at', firstDayOfMonth.toISOString());
 
+      if (monthlyError) throw monthlyError;
+
       const monIncome = monthlyVisits?.reduce((sum, v) => sum + (v.total_cost || 0), 0) || 0;
 
-      // 4. Recent Visits (Limit 5)
-      const { data: recents } = await supabase
+      // 4. Recent Visits
+      const { data: recents, error: recentsError } = await supabase
         .from('visits')
         .select('*, patients(first_name, last_name)')
         .order('created_at', { ascending: false })
         .limit(5);
+
+      if (recentsError) throw recentsError;
 
       setStats({
         totalPatients: patientCount || 0,
@@ -61,10 +75,13 @@ export default function Home() {
         incomeToday: todayIncome,
         monthlyIncome: monIncome
       });
-      if (recents) setRecentVisits(recents);
+      if (recents) setRecentVisits(recents as VisitWithPatient[]);
 
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+      setError(message);
+      showToast(message, 'error');
+      console.error('Error fetching dashboard stats:', err);
     } finally {
       setLoading(false);
     }
@@ -193,7 +210,7 @@ export default function Home() {
                   ) : recentVisits.map((visit) => (
                     <tr key={visit.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 font-medium text-slate-500">
-                        {new Date(visit.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        {visit.created_at ? new Date(visit.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-800">
                         {visit.patients?.first_name} {visit.patients?.last_name}

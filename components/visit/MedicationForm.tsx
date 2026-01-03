@@ -5,34 +5,17 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Trash2, Plus, Pill } from 'lucide-react';
+import { Medicine, PrescriptionItem } from '@/types';
 
 interface MedicationFormProps {
-    initialData?: any;
-    onNext: (data: any) => void;
+    initialData?: { basket?: PrescriptionItem[] };
+    onNext: (data: { basket: PrescriptionItem[]; total_cost: number }) => void;
     onBack: () => void;
-}
-
-interface Medicine {
-    id: string;
-    name: string;
-    price_per_unit: number;
-    unit: string;
-    stock_qty: number;
-}
-
-interface PrescriptionItem {
-    medicine_id: string;
-    name: string;
-    qty: number;
-    price: number;
-    unit: string;
 }
 
 export default function MedicationForm({ initialData, onNext, onBack }: MedicationFormProps) {
     const [medicines, setMedicines] = useState<Medicine[]>([]);
     const [basket, setBasket] = useState<PrescriptionItem[]>(initialData?.basket || []);
-
-    // Selection state
     const [selectedMedId, setSelectedMedId] = useState('');
     const [qty, setQty] = useState(1);
 
@@ -42,7 +25,7 @@ export default function MedicationForm({ initialData, onNext, onBack }: Medicati
 
     const fetchMedicines = async () => {
         const { data } = await supabase.from('medicines').select('*').order('name');
-        if (data) setMedicines(data);
+        if (data) setMedicines(data as Medicine[]);
     };
 
     const handleAdd = () => {
