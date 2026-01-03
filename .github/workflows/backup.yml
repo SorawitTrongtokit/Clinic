@@ -27,6 +27,15 @@ jobs:
           mkdir -p ~/.config/rclone
           CONF_PATH="$HOME/.config/rclone/rclone.conf"
           
+          # Debug Secret Availability
+          SECRET_LEN=${#RCLONE_CONF_SECRET}
+          echo "Debug: RCLONE_CONFIG secret length is $SECRET_LEN characters"
+          
+          if [ "$SECRET_LEN" -eq 0 ]; then
+             echo "❌ Error: RCLONE_CONFIG secret is EMPTY! Please check GitHub Settings > Secrets."
+             exit 1
+          fi
+          
           # Try 1: Attempt Base64 decode with ignore garbage (-i)
           echo "$RCLONE_CONF_SECRET" | base64 -di > "$CONF_PATH" 2>/dev/null || true
           
