@@ -22,6 +22,7 @@ export interface Patient {
     drug_allergy?: string;
     treatment_right: string;
     gender?: 'male' | 'female';
+    notes?: string;
     created_at?: string;
 }
 

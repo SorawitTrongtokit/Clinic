@@ -101,29 +101,59 @@ export default function Home() {
 
   const fetchWeeklyIncome = async () => {
     try {
-      const days: DailyIncome[] = [];
       const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 
+      // Single RPC call instead of 7 separate queries
+      const { data, error } = await supabase.rpc('get_weekly_income');
+
+      if (error) {
+        console.error('RPC error, falling back to client-side calculation:', error);
+        // Fallback: single query with client-side grouping
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        const { data: fallbackData } = await supabase
+          .from('visits')
+          .select('total_cost, created_at')
+          .gte('created_at', sevenDaysAgo.toISOString());
+
+        // Group by date on client side
+        const incomeByDate: Record<string, number> = {};
+        fallbackData?.forEach(v => {
+          const dateKey = new Date(v.created_at).toDateString();
+          incomeByDate[dateKey] = (incomeByDate[dateKey] || 0) + (v.total_cost || 0);
+        });
+
+        const days: DailyIncome[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          days.push({
+            date: date.toLocaleDateString('th-TH'),
+            dayName: dayNames[date.getDay()],
+            income: incomeByDate[date.toDateString()] || 0
+          });
+        }
+        setWeeklyIncome(days);
+        return;
+      }
+
+      // Map RPC result to DailyIncome format
+      const incomeMap: Record<string, number> = {};
+      data?.forEach((row: { visit_date: string; daily_income: number }) => {
+        incomeMap[row.visit_date] = Number(row.daily_income) || 0;
+      });
+
+      const days: DailyIncome[] = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const { data } = await supabase
-          .from('visits')
-          .select('total_cost')
-          .gte('created_at', startOfDay.toISOString())
-          .lte('created_at', endOfDay.toISOString());
-
-        const income = data?.reduce((sum, v) => sum + (v.total_cost || 0), 0) || 0;
-
+        const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
         days.push({
           date: date.toLocaleDateString('th-TH'),
           dayName: dayNames[date.getDay()],
-          income
+          income: incomeMap[dateKey] || 0
         });
       }
 
