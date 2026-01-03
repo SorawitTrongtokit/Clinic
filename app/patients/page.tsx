@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Search, UserPlus, FileText, User } from 'lucide-react';
@@ -19,9 +19,15 @@ export default function PatientsPage() {
     const [searched, setSearched] = useState(false);
     const [startingVisit, setStartingVisit] = useState(false);
     const router = useRouter();
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     const [searchResults, setSearchResults] = useState<Patient[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+
+    // Auto-focus search input on mount
+    useEffect(() => {
+        searchInputRef.current?.focus();
+    }, []);
 
     // Debounce search effect
     useEffect(() => {
@@ -135,6 +141,7 @@ export default function PatientsPage() {
                             </label>
                             <Input
                                 id="id_card"
+                                ref={searchInputRef}
                                 placeholder="เลขบัตรประชาชน... (กรอกได้เฉพาะตัวเลข)"
                                 value={searchId}
                                 onChange={handleInputChange}

@@ -33,6 +33,33 @@ export default function VisitPage() {
 
     const isNew = id === 'new';
 
+    // Load saved examiner from localStorage on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedExaminer = localStorage.getItem('clinic_last_examiner');
+            if (savedExaminer) {
+                setFormData(prev => ({ ...prev, examiner: savedExaminer }));
+            }
+        }
+    }, []);
+
+    // Confirm before leaving page without saving (only for new visits)
+    useEffect(() => {
+        if (!isNew) return;
+
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            // Only warn if we have some data filled in
+            if (formData.cc || formData.diagnosis || formData.basket.length > 0) {
+                e.preventDefault();
+                e.returnValue = 'คุณยังไม่ได้บันทึกข้อมูล ต้องการออกจริงๆ หรือไม่?';
+                return e.returnValue;
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isNew, formData.cc, formData.diagnosis, formData.basket.length]);
+
     useEffect(() => {
         if (isNew) {
             const params = new URLSearchParams(window.location.search);
@@ -160,6 +187,9 @@ export default function VisitPage() {
             }
 
             console.log('Transaction Success:', data);
+
+            // Save examiner to localStorage for next visit
+            localStorage.setItem('clinic_last_examiner', formData.examiner);
 
             alert('บันทึกข้อมูลเรียบร้อยแล้ว');
             router.push('/patients/' + formData.patient_id); // Go back to patient history

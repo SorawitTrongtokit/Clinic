@@ -3,17 +3,25 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { UserSearch, Pill, Activity, Users, CreditCard, TrendingUp, Calendar, ArrowRight, Clock, ShieldCheck, FileText, BarChart3 } from 'lucide-react';
+import { UserSearch, Pill, Activity, Users, CreditCard, TrendingUp, Calendar, ArrowRight, Clock, ShieldCheck, FileText, BarChart3, History } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { VisitWithPatient, Medicine } from '@/types';
+import { VisitWithPatient, Medicine, Patient } from '@/types';
 import { useToast } from '@/components/ui/Toast';
 import IncomeChart from '@/components/dashboard/IncomeChart';
 import LowStockAlert from '@/components/dashboard/LowStockAlert';
+import { DashboardSkeleton } from '@/components/ui/Skeleton';
 
 interface DailyIncome {
   date: string;
   dayName: string;
   income: number;
+}
+
+interface RecentPatient {
+  id: string;
+  hn: string;
+  name: string;
+  visitedAt: string;
 }
 
 export default function Home() {
@@ -27,8 +35,23 @@ export default function Home() {
   const [recentVisits, setRecentVisits] = useState<VisitWithPatient[]>([]);
   const [weeklyIncome, setWeeklyIncome] = useState<DailyIncome[]>([]);
   const [lowStockMedicines, setLowStockMedicines] = useState<Medicine[]>([]);
+  const [recentPatients, setRecentPatients] = useState<RecentPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Load recent patients from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('clinic_recent_patients');
+      if (saved) {
+        try {
+          setRecentPatients(JSON.parse(saved));
+        } catch (e) {
+          console.error('Error parsing recent patients:', e);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchStats();
@@ -375,6 +398,33 @@ export default function Home() {
                 </Link>
               </div>
             </div>
+
+            {/* Recent Patients */}
+            {recentPatients.length > 0 && (
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <History className="h-5 w-5 text-purple-500" />
+                  ผู้ป่วยล่าสุด
+                </h3>
+                <div className="space-y-2">
+                  {recentPatients.slice(0, 5).map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/patients/${p.id}`}
+                      className="flex items-center gap-3 p-3 hover:bg-purple-50 rounded-xl transition-colors border border-transparent hover:border-purple-100 group"
+                    >
+                      <div className="h-8 w-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-bold">
+                        {p.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-700 truncate text-sm">{p.name}</p>
+                        <p className="text-xs text-slate-400">HN: {p.hn}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

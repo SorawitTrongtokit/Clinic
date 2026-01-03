@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
@@ -9,9 +9,10 @@ import RegistrationForm from '@/components/patients/RegistrationForm';
 import VisitTimeline from '@/components/patients/VisitTimeline';
 import VitalSignsChart from '@/components/patients/VitalSignsChart';
 import PatientNotes from '@/components/patients/PatientNotes';
-import { User, FileText, Printer, Clock, ArrowLeft, AlertCircle, Phone, MapPin, Edit, Activity, LayoutList } from 'lucide-react';
+import { User, FileText, Printer, Clock, ArrowLeft, AlertCircle, Phone, MapPin, Edit, Activity, LayoutList, Copy, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Patient, VisitWithPatient } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 
 type TabType = 'overview' | 'timeline' | 'vitals';
 
@@ -19,17 +20,67 @@ type TabType = 'overview' | 'timeline' | 'vitals';
 export default function PatientRecordPage() {
     const { id } = useParams();
     const router = useRouter();
+    const { showToast } = useToast();
     const [patient, setPatient] = useState<Patient | null>(null);
     const [visits, setVisits] = useState<VisitWithPatient[]>([]);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<TabType>('overview');
+    const [hnCopied, setHnCopied] = useState(false);
+
+    // Quick Copy HN function
+    const copyHN = useCallback(async () => {
+        if (!patient?.hn) return;
+        try {
+            await navigator.clipboard.writeText(patient.hn);
+            setHnCopied(true);
+            showToast(`คัดลอก HN: ${patient.hn} แล้ว`, 'success');
+            setTimeout(() => setHnCopied(false), 2000);
+        } catch (err) {
+            showToast('ไม่สามารถคัดลอกได้', 'error');
+        }
+    }, [patient?.hn, showToast]);
+
+    // Keyboard shortcuts (Esc to close modal)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isEditing) {
+                setIsEditing(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isEditing]);
 
     useEffect(() => {
         if (id) {
             fetchData();
         }
     }, [id]);
+
+    // Save to recent patients when patient is loaded
+    useEffect(() => {
+        if (patient && typeof window !== 'undefined') {
+            const recentPatient = {
+                id: patient.id,
+                hn: patient.hn,
+                name: `${patient.prefix} ${patient.first_name} ${patient.last_name}`,
+                visitedAt: new Date().toISOString()
+            };
+
+            const saved = localStorage.getItem('clinic_recent_patients');
+            let recent = saved ? JSON.parse(saved) : [];
+
+            // Remove if already exists
+            recent = recent.filter((p: { id: string }) => p.id !== patient.id);
+            // Add to front
+            recent.unshift(recentPatient);
+            // Keep only 10 most recent
+            recent = recent.slice(0, 10);
+
+            localStorage.setItem('clinic_recent_patients', JSON.stringify(recent));
+        }
+    }, [patient]);
 
     const fetchData = async () => {
         try {
@@ -136,7 +187,18 @@ export default function PatientRecordPage() {
                                     <User className="h-12 w-12 text-white" />
                                 </div>
                                 <h2 className="text-xl font-bold">{patient.prefix} {patient.first_name} {patient.last_name}</h2>
-                                <p className="text-slate-300 text-sm mt-1">HN: {patient.hn}</p>
+                                <button
+                                    onClick={copyHN}
+                                    className="text-slate-300 text-sm mt-1 hover:text-white transition-colors flex items-center gap-1 mx-auto group cursor-pointer"
+                                    title="คลิกเพื่อคัดลอก HN"
+                                >
+                                    HN: {patient.hn}
+                                    {hnCopied ? (
+                                        <Check className="h-3.5 w-3.5 text-green-400" />
+                                    ) : (
+                                        <Copy className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    )}
+                                </button>
                                 <button
                                     onClick={() => setIsEditing(true)}
                                     className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
