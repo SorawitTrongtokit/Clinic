@@ -62,21 +62,31 @@ jobs:
 
       - name: Upload to Google Drive
         run: |
-          # Use 'gdrive' as the remote name, assuming user configured it so or we instruct them
-          rclone copy "${{ env.BACKUP_FILE }}" gdrive:ClinicBackups/ -v
+          # Detect the remote name dynamically (e.g., could be 'gdrive:', 'remote:', etc.)
+          REMOTE_NAME=$(rclone listremotes | head -n 1)
+          if [ -z "$REMOTE_NAME" ]; then
+            echo "Error: No remote found in rclone config"
+            exit 1
+          fi
+          echo "Using Rclone remote: $REMOTE_NAME"
+          
+          rclone copy "${{ env.BACKUP_FILE }}" "${REMOTE_NAME}ClinicBackups/" -v
           echo "✅ Uploaded to Google Drive"
 
       - name: Cleanup old backups on Drive (keep last 30)
         run: |
-          # Check if directory exists first to avoid error on first run
-          if rclone lsd gdrive:ClinicBackups/ >/dev/null 2>&1; then
-             rclone lsf gdrive:ClinicBackups/ --files-only | sort -r | tail -n +31 | while read file; do
-               rclone delete "gdrive:ClinicBackups/$file"
+           # Detect the remote name dynamically again
+           REMOTE_NAME=$(rclone listremotes | head -n 1)
+           
+           # Check if directory exists first
+           if rclone lsd "${REMOTE_NAME}ClinicBackups/" >/dev/null 2>&1; then
+             rclone lsf "${REMOTE_NAME}ClinicBackups/" --files-only | sort -r | tail -n +31 | while read file; do
+               rclone delete "${REMOTE_NAME}ClinicBackups/$file"
                echo "🗑️ Deleted old backup: $file"
              done
-          else
+           else
              echo "Info: ClinicBackups directory does not exist yet (first run?), skipping cleanup."
-          fi
+           fi
 
       - name: Report status
         if: always()
