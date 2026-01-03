@@ -146,16 +146,17 @@ export default function VisitPage() {
                 }
             }
 
-            // 1. Prepare Visit Data (JSON for RPC)
+            // 1. Prepare Visit Data (JSON for RPC) - with value clamping
+            const clamp = (val: number | null, max: number) => val !== null && val > max ? max : val;
             const visitData = {
                 temp: formData.temp ? parseFloat(formData.temp) : null,
                 pulse: formData.pulse ? parseInt(formData.pulse) : null,
                 resp_rate: formData.resp_rate ? parseInt(formData.resp_rate) : null,
                 bp_sys: formData.bp_sys ? parseInt(formData.bp_sys) : null,
                 bp_dia: formData.bp_dia ? parseInt(formData.bp_dia) : null,
-                weight: formData.weight ? parseFloat(formData.weight) : null,
-                height: formData.height ? parseFloat(formData.height) : null,
-                bmi: formData.bmi ? parseFloat(formData.bmi) : null,
+                weight: clamp(formData.weight ? parseFloat(formData.weight) : null, 999.99),
+                height: clamp(formData.height ? parseFloat(formData.height) : null, 999.9),
+                bmi: clamp(formData.bmi ? parseFloat(formData.bmi) : null, 99.99),
                 urgency: formData.urgency,
                 alcohol: formData.alcohol,
                 smoking: formData.smoking,
@@ -163,7 +164,7 @@ export default function VisitPage() {
                 pe: formData.pe,
                 diagnosis: formData.diagnosis,
                 icd10_code: formData.icd10_code || null,
-                total_cost: formData.total_cost
+                total_cost: formData.total_cost || 0
             };
 
             // 2. Prepare Prescriptions (Array for RPC)

@@ -120,12 +120,34 @@ export default function PrintVisitPage() {
                             )}
                         </tbody>
                         <tfoot>
-                            <tr className="font-bold text-lg">
-                                <td colSpan={2} className="py-2 text-right pt-4">ยอดสุทธิ</td>
-                                <td className="py-2 text-right pt-4 text-slate-900 border-b-4 border-double border-slate-800">
-                                    {data.total_cost?.toLocaleString()} บาท
-                                </td>
-                            </tr>
+                            {(() => {
+                                // Calculate medication cost and service fee
+                                const medicationTotal = prescriptions?.reduce((sum: number, item: any) => sum + (item.total_price || 0), 0) || 0;
+                                const serviceFee = (data.total_cost || 0) - medicationTotal;
+
+                                return (
+                                    <>
+                                        {serviceFee > 0 && (
+                                            <>
+                                                <tr className="text-sm">
+                                                    <td colSpan={2} className="py-1 text-right">ค่ายา</td>
+                                                    <td className="py-1 text-right">{medicationTotal.toLocaleString()} บาท</td>
+                                                </tr>
+                                                <tr className="text-sm">
+                                                    <td colSpan={2} className="py-1 text-right">ค่าบริการ</td>
+                                                    <td className="py-1 text-right">{serviceFee.toLocaleString()} บาท</td>
+                                                </tr>
+                                            </>
+                                        )}
+                                        <tr className="font-bold text-lg">
+                                            <td colSpan={2} className="py-2 text-right pt-4">ยอดสุทธิ</td>
+                                            <td className="py-2 text-right pt-4 text-slate-900 border-b-4 border-double border-slate-800">
+                                                {data.total_cost?.toLocaleString()} บาท
+                                            </td>
+                                        </tr>
+                                    </>
+                                );
+                            })()}
                         </tfoot>
                     </table>
                 </div>

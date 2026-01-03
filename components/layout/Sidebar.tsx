@@ -18,9 +18,10 @@ export default function Sidebar() {
 
     const navItems = [
         { href: '/', label: 'หน้าแรก', icon: Home },
-        { href: '/patients', label: 'ต้อนรับ / คัดกรอง', icon: Users },
+        { href: '/patients', label: 'ตรวจคัดกรอง', icon: Users },
         { href: '/records', label: 'ทะเบียนผู้ป่วย', icon: FileText },
         { href: '/stock', label: 'คลังยา', icon: Pill },
+        { href: '/accounting', label: 'บัญชี / การเงิน', icon: ClipboardList },
     ];
 
     const closeSidebar = () => setIsOpen(false);
